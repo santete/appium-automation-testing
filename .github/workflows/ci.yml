@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   verify:
-    name: verify (typecheck + lint + unit + integration + api)
+    name: verify (typecheck + lint + quarantine + unit + integration + api)
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -59,7 +59,10 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests (54 specs)
+      - name: Quarantine deadline check (Task 9 — schema valid + 0 past-deadline)
+        run: npm run check:quarantine
+
+      - name: Unit tests (75 specs — 54 baseline + 21 quarantine)
         run: npm run test:unit
 
       - name: Integration tests (8 + 2 gated — gated skip vì ALLOW_NETWORK_INTEGRATION='')

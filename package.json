@@ -19,6 +19,7 @@
     "format": "prettier --write \"**/*.{ts,json,md,yaml,yml}\"",
     "format:check": "prettier --check \"**/*.{ts,json,md,yaml,yml}\"",
     "typecheck": "tsc --noEmit",
+    "check:quarantine": "node ./scripts/check-quarantine.cjs",
     "allure:generate": "allure generate ./reports/allure-results -o ./reports/allure-report --clean",
     "allure:open": "allure open ./reports/allure-report",
     "allure:serve": "allure serve ./reports/allure-results"

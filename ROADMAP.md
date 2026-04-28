@@ -182,7 +182,7 @@ Test isolated hoàn toàn, không flaky vì data hoặc env.
 ## M4 — CI/CD Integration
 
 **Map vào:** spec §11 Phase 4 (Week 10-12), §7
-**Status:** 🟡 In progress (v1.0 signed-off 2026-04-28; Task 1+2+3+4+5+8+12/19 done 2026-04-28 — repo + PR template + farm stubs + CI/Regression workflows + quarantine mechanism + actionlint shipped, Pages/Slack deploy lines commented chờ Task 6+7)
+**Status:** 🟡 In progress (v1.1 revised 2026-04-28; Task 1+2+3+4+5+8+9+12/19 done 2026-04-28; Task 6+7+11 deferred M5 — repo + PR template + farm stubs + CI/Regression + quarantine mechanism + quarantine CI gate + actionlint shipped)
 **Plan file:** [docs/plans/M4-cicd.md](docs/plans/M4-cicd.md)
 **Carry-over from M3:** D4 real-device verify (local-dev path: build minimal debuggable Kotlin test APK + run StateChecker `mobile:executeScript` backend trên dev Android device — device farm wire-up defer M5+)
 **Depends on:** M3 done ✅
@@ -190,24 +190,24 @@ Test isolated hoàn toàn, không flaky vì data hoặc env.
 ### Goal
 Non-device tier (typecheck + lint + unit + integration + api) chạy tự động trên PR + nightly via GitHub Actions; smoke E2E giữ local-dev với PR template gate; quarantine YAML enforcement; D4 real-device repay local.
 
-### Done criteria (sign-off)
-> PR mở → CI gate (non-device) chạy **< 5 phút**, fail **block merge**; nightly regression fail → **notify Slack < 5 phút**; smoke E2E manual verify gate (PR template checklist); D4 real-device verify pass trên dev device.
+### Done criteria (sign-off — revised v1.1, 2026-04-28)
+> PR mở → CI gate (typecheck + lint + unit + integration + api + quarantine deadline check) chạy **< 5 phút**, fail **block merge** (branch protection minimal: required check, không require review); D4 real-device verify pass trên dev device; smoke E2E manual verify gate (PR template checklist); Allure xem local từ artifact zip; **không wire device farm + Slack + GH Pages — defer M5**.
 
 ### Deliverables
 - [x] Repo bootstrapped: `git init` + push `github.com/santete/appium-automation-testing`, default branch `main` (commit `e0eb4b9`, 2026-04-28)
-- [x] `.github/workflows/ci.yml` — PR + push to main, single Linux runner, typecheck + lint + unit + integration + api (2026-04-28)
-- [x] `.github/workflows/regression.yml` — cron 2AM UTC + manual dispatch, full suite + `ALLOW_NETWORK_INTEGRATION=1` (2026-04-28; Pages deploy + Slack notify steps commented, uncomment khi Task 6+7 ship)
-- [x] `.github/workflows/actionlint.yml` — workflow self-lint (`docker://rhysd/actionlint`, paths-filtered `.github/workflows/**`, 5min timeout) (2026-04-28)
+- [x] `.github/workflows/ci.yml` — PR + push to main, single Linux runner, typecheck + lint + unit + integration + api (2026-04-28; quarantine deadline check Task 9 còn)
+- [x] `.github/workflows/regression.yml` — cron 2AM UTC + manual dispatch, full suite + `ALLOW_NETWORK_INTEGRATION=1`, Allure artifact 30d retention (2026-04-28; xem report local từ artifact zip download)
+- [x] `.github/workflows/actionlint.yml` — workflow self-lint (`docker://rhysd/actionlint`, paths-filtered, 5min timeout) (2026-04-28)
 - [x] `.github/PULL_REQUEST_TEMPLATE.md` — smoke local verify checklist (honor system gate) (2026-04-28)
-- [x] `src/config/wdio.bs.ts` + `wdio.sauce.ts` — config-driven stub fail-fast guard (throw nếu BS_*/SAUCE_* empty), M5+ swap chỉ cần fill creds (2026-04-28)
-- [ ] Allure publish reusable composite action — deploy GH Pages `santete.github.io/appium-automation-testing/<run-id>/` (30-day retention)
-- [ ] Slack notification reusable composite — `#pr-failures` + `#qa-alerts`
-- [ ] Branch protection rule (gh api): main only, required check `ci / verify` + 1 review
-- [x] `docs/quarantine.yaml` schema + Zod validation (`src/utils/quarantine/{schema,loader}.ts`) + custom Mocha hook (`tests/_hooks/quarantine.ts`) deadline-aware (2w default + 1w grace, 21d max). Wired vào tất cả mocharc + WDIO configs (FIRST trong require — skip-before-lease). 21 unit test (75 total). (2026-04-28)
-- [ ] `scripts/check-quarantine.cjs` deadline enforcement CI step
-- [ ] `scripts/append-duration.cjs` pipeline duration baseline tracker (M5 dashboard hook)
+- [x] `src/config/wdio.bs.ts` + `wdio.sauce.ts` — config-driven stub fail-fast guard (2026-04-28)
+- 🔵 ~~Allure publish GH Pages composite~~ — **DEFER M5** (Enterprise org block GH Pages; xem local từ artifact)
+- 🔵 ~~Slack notification composite~~ — **DEFER M5** (Actions tab native notification đủ solo)
+- [ ] Branch protection rule (gh api): main only, required check `ci / verify`, **không require review** (solo dev — revised Decision 7 v1.1)
+- [x] `docs/quarantine.yaml` schema + Zod validation (`src/utils/quarantine/{schema,loader}.ts`) + custom Mocha hook (`tests/_hooks/quarantine.ts`) deadline-aware. Wired FIRST trong tất cả mocharc + WDIO configs. 21 unit test (75 total). (2026-04-28)
+- [x] `scripts/check-quarantine.cjs` deadline enforcement CI step — reuse `loadQuarantine` qua `ts-node/register`, 3 paths (PASS / past-deadline FAIL / schema invalid FAIL), wired vào `ci.yml` + `regression.yml`. (2026-04-28)
+- 🔵 ~~`scripts/append-duration.cjs` pipeline duration baseline tracker~~ — **DEFER M5** (M5 dashboard mới consume CSV/Gist data này)
 - [ ] **[Repay D4 real-device]** `apps/test-debuggable-src/` minimal Kotlin app + `scripts/build-test-apk.cjs` + `tests/integration/state-checker-mobile-real.spec.ts` (local-dev gate, `RUN_REAL_DEVICE=1`)
-- [ ] `docs/runbook-pr-merge-gate.md` + `docs/runbook-M4-acceptance.md` (9 sub-points)
+- [ ] `docs/runbook-pr-merge-gate.md` + `docs/runbook-M4-acceptance.md` (7 sub-points)
 
 ### Plan checklist (đã trả lời trong plan v1.0)
 - CI provider: **GitHub Actions** ✓
@@ -231,6 +231,8 @@ Non-device tier (typecheck + lint + unit + integration + api) chạy tự độn
 | 2026-04-28 | **Task 2 + 3 🟢** — README CI + Allure GH Pages badge; `.github/PULL_REQUEST_TEMPLATE.md` với 5 checklist (auto CI gate + smoke local honor-system + multi-layer assertion + quarantine + plan-before-execute). Config-driven stubs `src/config/wdio.bs.ts` + `wdio.sauce.ts`: fail-fast guard throw khi creds empty → M5+ chỉ cần fill `.env.local` + uncomment `bstack:options`/`sauce:options` block. `.env.example` + Zod schema (`src/config/index.ts`) thêm SAUCE_* placeholder. Verify: typecheck ✅, lint ✅, unit 54/54 ✅. Next: Task 4 (CI workflow). |
 | 2026-04-28 | **Task 4 + 5 🟢** — CI/Regression workflows shipped. `ci.yml`: PR + push main trigger, single ubuntu-latest job `verify`, env block set Zod-required vars + `ALLOW_NETWORK_INTEGRATION=''` (gated tests skip), `concurrency: cancel-in-progress`, Allure artifact 7d, timeout 10min. `regression.yml`: cron `0 2 * * *` UTC + `workflow_dispatch`, `ALLOW_NETWORK_INTEGRATION='1'` (real httpbin), Allure artifact 30d, timeout 30min, GH Pages deploy + Slack notify steps commented (uncomment khi Task 6+7 ship). Pause execution sau Task 5 — chờ Phuc setup Slack workspace + GH Pages. |
 | 2026-04-28 | **Task 8 + 12 🟢** — Quarantine mechanism + actionlint self-lint (cả hai độc lập với Pages/Slack, ship trước trong khi Phuc setup). Task 8: `src/utils/quarantine/{schema,loader}.ts` (Zod schema validate `{test_id, reason≥10, added, deadline, owner}` + 2 refinements: deadline ≥ added và deadline ≤ added + 21 ngày = 14 default + 7 grace) + `tests/_hooks/quarantine.ts` (Mocha root hook, `fullTitle()` match → future deadline `this.skip()`, past throw error có owner/reason/extend hint) + `docs/quarantine.yaml` (entries: []) + 21 unit tests. Hook wired FIRST trong tất cả `.mocharc.*.cjs` + WDIO `mochaOpts.require` (local/staging/bs/sauce) — skip-before-lease tránh leak AccountPool slot khi quarantine skip. Task 12: `.github/workflows/actionlint.yml` self-lint dùng `docker://rhysd/actionlint:latest`, trigger paths-filtered `.github/workflows/**`, 5min timeout, concurrency cancel-in-progress. Verify: typecheck ✅, lint ✅, unit 75/75 ✅ (54 + 21 quarantine), integration ✅, api ✅. Next: Task 9 (deadline check CI script) sẵn sàng; Task 6+7 vẫn block chờ Phuc Pages + Slack. |
+| 2026-04-28 | **Plan revision v1.0 → v1.1 — solo-local focus.** GH Pages bị Enterprise org block khi Phuc check; Vercel alternative không justify cho solo dev (anh tự xem report). Phuc DN chốt: "kênh nhận thông tin cảnh báo này nọ setup sau, dashboard chưa share link được thì xem local, tập trung xử lý cho hoàn thiện sản phẩm có thể chạy solo ở local". **Defer Task 6 (Allure host) + Task 7 (Slack notify) + Task 11 (pipeline duration tracker) sang M5.** Decision 7 revised: branch protection drop "1 review required" (solo workflow). Done criteria 9 → 7 sub-points. Estimate ~14h → ~10h. M4 còn lại: Task 9, 10 (minimal), 13-15 (D4), 16, 17-19. Sản phẩm M4 final: framework chạy được solo local end-to-end (PR + nightly auto + smoke gate manual + D4 verified). |
+| 2026-04-28 | **Task 9 🟢** — Quarantine deadline check CI gate. `scripts/check-quarantine.cjs` reuse `loadQuarantine` qua `ts-node/register/transpile-only` (single source of truth). 3 paths verify: empty entries → exit 0 PASS, past-deadline → exit 1 FAIL output owner/reason/deadline, schema invalid → exit 1 FAIL với issue path. Wired vào `ci.yml` + `regression.yml` step sau Lint trước Unit. `npm run check:quarantine` script alias. `regression.yml` cleanup Task 6/7 placeholder → note plan v1.1 defer M5. Verify local: typecheck ✅, lint ✅, unit 75/75 ✅, check:quarantine ✅ all 3 paths. Next: Task 10 (branch protection minimal qua gh api), Task 13-15 (D4 Kotlin APK + integration spec — confirm prereqs trước). |
 
 ---
 
@@ -372,6 +374,8 @@ Ghi lại các quyết định technical quan trọng và lý do (giúp future C
 | 2026-04-28 | M4 Allure publish = **GH Pages**, per-run subfolder, **30 ngày rolling cleanup** | Q9 sign-off — zero cost + native với GH Actions (`peaceiris/actions-gh-pages`); URL stable `<user>.github.io/<repo>/<run-id>/`. Allure TestOps paid → defer M5. | M4, M5 |
 | 2026-04-28 | M4 branch protection = **main only**, required check `ci / verify` + 1 review, force-push blocked | Q10 sign-off — single-eng project chưa cần `develop` flow. Override path documented (admin force-merge) cho emergency. | M4 |
 | 2026-04-28 | **Bump Node 20 LTS → 22 LTS** (CI workflows + `package.json` engines) — supersedes M1 decision row 4 | CI run đầu tiên fail vì `mocha --no-experimental-strip-types` không tồn tại trên Node 20 (M2 decision row 22 thêm flag để fix Node 22 default TS-strip; flag chỉ valid trên Node 22+). Dev machine đã Node 22.18.0 → align CI khớp. Node 22 = Active LTS từ 10/2024, không downgrade-only. | M4 (CI fix); M5+ giữ Node 22 |
+| 2026-04-28 | **M4 plan revision v1.0 → v1.1** — defer Task 6 (Allure host), Task 7 (Slack notify), Task 11 (pipeline duration) sang M5; supersedes Decision 8 (GH Pages) + Decision 9 (Slack 2 channels) | (a) GH Pages bị Enterprise org block khi Phuc check; Vercel alternative không justify cho solo dev. (b) "kênh nhận thông tin cảnh báo này nọ setup sau, dashboard chưa share link được thì xem local, tập trung xử lý cho hoàn thiện sản phẩm có thể chạy solo ở local". (c) Pipeline duration tracker chỉ M5 dashboard mới consume. M4 final scope = framework chạy được solo local (CI auto + smoke gate manual + D4 verified). | M4 (drop), M5 (revisit khi có team / dashboard tool) |
+| 2026-04-28 | **M4 branch protection drop "1 review required"** — supersedes Decision 7 v1.0 | Solo dev không có reviewer khác → "1 review required" sẽ block forever khi anh tự PR. Giữ required check `ci / verify` + force-push blocked. M5+ add review requirement khi có team. | M4 (revised), M5 |
 
 ---
 

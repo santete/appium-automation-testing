@@ -9,12 +9,11 @@
 # Khác `ci.yml`:
 #   - `ALLOW_NETWORK_INTEGRATION=1` → 2 gated integration tests chạy real httpbin.
 #   - Allure artifact retention 30 ngày (vs 7 ngày CI).
-#   - Allure GH Pages deploy: TASK 6 wire (cần Phuc enable Pages trong repo
-#     Settings + chọn Source = gh-pages branch). Step `deploy-pages` placeholder
-#     ở dưới — uncomment sau khi Pages enabled.
 #
-# Slack notify on failure: TASK 7 wire (cần Phuc tạo workspace + 2 channel
-# `#pr-failures` + `#qa-alerts` + 2 webhook URLs → add vào GH Secrets).
+# Plan v1.1 (revised 2026-04-28 — solo-local focus):
+#   - Allure host (Task 6) + Slack notify (Task 7) → DEFER M5. M4 dùng artifact
+#     download (zip → unzip → mở `index.html` local). GitHub Actions native
+#     notification + manual Actions tab check đủ cho solo dev.
 name: Regression (nightly)
 
 on:
@@ -57,6 +56,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Quarantine deadline check
+        run: npm run check:quarantine
+
       - name: Unit tests
         run: npm run test:unit
 
@@ -75,24 +77,6 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-      # M4 Task 6 — uncomment sau khi:
-      #   1. GitHub repo Settings → Pages → Source = `gh-pages` branch / root.
-      #   2. Composite action `.github/actions/publish-allure/action.yml` ship.
-      # - name: Generate + deploy Allure to GH Pages
-      #   if: always()
-      #   uses: ./.github/actions/publish-allure
-      #   with:
-      #     allure-results: reports/allure-results
-      #     target-subfolder: ${{ github.run_id }}
-
-      # M4 Task 7 — uncomment sau khi:
-      #   1. Slack workspace + #qa-alerts channel + incoming webhook tạo.
-      #   2. SLACK_WEBHOOK_QA add vào GH Secrets.
-      #   3. Composite action `.github/actions/notify-slack/action.yml` ship.
-      # - name: Notify Slack on failure
-      #   if: failure()
-      #   uses: ./.github/actions/notify-slack
-      #   with:
-      #     webhook-url: ${{ secrets.SLACK_WEBHOOK_QA }}
-      #     workflow: regression
-      #     run-id: ${{ github.run_id }}
+      # Plan v1.1 (2026-04-28): Allure host + Slack notify defer M5. Workflow
+      # giữ artifact upload only — anh download zip → unzip → mở `index.html`
+      # khi cần xem report. M5 plan revisit khi có team / dashboard tool.
