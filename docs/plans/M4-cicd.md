@@ -8,7 +8,7 @@
 |-------|-------|
 | Milestone ID | M4 |
 | Spec section | `automation_testing_requirement.md` §7 + §11 Phase 4 |
-| Status | 🟡 In progress (v1.0 signed-off 2026-04-28; Task 1+2+3/19 done 2026-04-28) |
+| Status | 🟡 In progress (v1.0 signed-off 2026-04-28; Task 1+2+3+4+5/19 done 2026-04-28) |
 | Plan author | Claude + Phuc DN |
 | Plan version | v1.0 (signed-off 2026-04-28) |
 | Created | 2026-04-28 |
@@ -175,8 +175,8 @@ Test **non-device tier** (typecheck + lint + unit + integration + api) chạy t�
 | 1 | Repo bootstrap: `git init`, .gitignore review, initial commit M1-M3 history collapse, push `santete/appium-automation-testing` | `.git`, GH repo | 0.5h | 🟢 | — |
 | 2 | README + CI badges + PR template | `README.md`, `.github/PULL_REQUEST_TEMPLATE.md` (smoke local checklist) | 0.5h | 🟢 | — |
 | 3 | Device farm config-driven stub | `src/config/wdio.bs.ts`, `wdio.sauce.ts`, `.env.example` (BS_USER/BS_KEY placeholder) | 0.7h | 🟢 | test-implement |
-| 4 | CI workflow `ci.yml` (PR + push to main) — typecheck + lint + unit + integration + api | `.github/workflows/ci.yml` | 1.5h | ⬜ | — |
-| 5 | Regression workflow (cron 2AM + manual dispatch) — full + `ALLOW_NETWORK_INTEGRATION=1` | `.github/workflows/regression.yml` | 1h | ⬜ | — |
+| 4 | CI workflow `ci.yml` (PR + push to main) — typecheck + lint + unit + integration + api | `.github/workflows/ci.yml` | 1.5h | 🟢 | — |
+| 5 | Regression workflow (cron 2AM + manual dispatch) — full + `ALLOW_NETWORK_INTEGRATION=1` | `.github/workflows/regression.yml` | 1h | 🟢 | — |
 | 6 | Allure publish reusable composite action — collect integration Allure, deploy GH Pages | `.github/actions/publish-allure/action.yml` | 1h | ⬜ | — |
 | 7 | Slack notification reusable composite (PR fail + nightly fail) | `.github/actions/notify-slack/action.yml` | 0.7h | ⬜ | — |
 | 8 | Quarantine YAML + Zod schema + custom Mocha hook | `docs/quarantine.yaml`, `tests/_hooks/quarantine.ts`, schema | 1h | ⬜ | test-implement |
@@ -281,6 +281,7 @@ Nếu phải hủy giữa chừng:
 | 2026-04-28 | Phuc DN sign-off: Q1 = `santete/appium-automation-testing`, Q2 = KHÔNG wire device farm M4 (config-driven stub cho M5+), Q3-Q12 OK. Plan revised v0.1 → v1.0: drop BS wire-up, drop sharding, smoke E2E giữ local-dev với PR template gate. Status → 🔵 Plan ready. | None. Cần Phuc setup GH repo + Slack webhooks trước Task 4-7. |
 | 2026-04-28 | **Task 1 🟢** — repo bootstrap. `git init -b main` + `.gitignore` revise (add `tmp/`, `.gradle/`, `**/build/`, `local.properties`, `.claude/settings.local.json`, `.claude/scheduled_tasks.lock`); 80 files staged (no `.env.local` / `node_modules/` / APK leak); single squashed commit `e0eb4b9` "M1+M2+M3 baseline"; `origin` = `https://github.com/santete/appium-automation-testing.git`; `git push -u origin main` SUCCESS. Repo public at https://github.com/santete/appium-automation-testing. Status → 🟡 In progress (Task 2-19 next). | Cần Phuc tạo Slack workspace + 2 channel + 2 webhook (block Task 7), enable GH Pages trong repo settings (block Task 6). |
 | 2026-04-28 | **Task 2 + 3 🟢** — README CI/Allure badge + `.github/PULL_REQUEST_TEMPLATE.md` (auto CI gate + smoke local honor-system + multi-layer assertion + quarantine + plan-before-execute checklists). Config-driven stubs `src/config/wdio.bs.ts` + `wdio.sauce.ts` ship với fail-fast guard (throw nếu BS_*/SAUCE_* env empty) — M5+ activation chỉ cần fill creds + uncomment `bstack:options`/`sauce:options` block. `.env.example` + `src/config/index.ts` Zod schema thêm SAUCE_* placeholders. Verify: `npm run typecheck` ✅, `npm run lint` ✅, `npm run test:unit` 54/54 ✅. | None — Task 4 (CI workflow) sẵn sàng. |
+| 2026-04-28 | **Task 4 + 5 🟢** — `.github/workflows/ci.yml`: PR + push to main trigger, single Linux job `verify` (typecheck + lint + unit + integration + api), `concurrency: cancel-in-progress` để hủy run cũ, env block set Zod-required vars (ANDROID_DEVICE_NAME=ci-stub, APP_PATH placeholder), `ALLOW_NETWORK_INTEGRATION=''` (gated tests skip), Allure artifact retention 7 ngày, timeout 10min. `.github/workflows/regression.yml`: cron `0 2 * * *` UTC + `workflow_dispatch`, `ALLOW_NETWORK_INTEGRATION='1'` (real httpbin), Allure artifact 30 ngày, timeout 30min. GH Pages deploy + Slack notify steps placeholder commented (uncomment khi Task 6 + 7 ship — chờ Phuc enable Pages + tạo webhooks). | Task 6 (Allure GH Pages composite action) cần Phuc enable Settings → Pages. Task 7 (Slack composite) cần Phuc tạo workspace + 2 webhook URLs. |
 
 ## 12. Plan revisions
 

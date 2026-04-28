@@ -1,0 +1,98 @@
+# Regression nightly (M4 Task 5) — full non-device suite + gated network tests.
+#
+# Plan ref: docs/plans/M4-cicd.md §3 in-scope, §2 done-criteria sub-point 4-5.
+#
+# Trigger:
+#   - Cron `0 2 * * *` UTC (≈ 09:00 ICT VN) mỗi ngày.
+#   - `workflow_dispatch` cho manual smoke check sau merge gấp.
+#
+# Khác `ci.yml`:
+#   - `ALLOW_NETWORK_INTEGRATION=1` → 2 gated integration tests chạy real httpbin.
+#   - Allure artifact retention 30 ngày (vs 7 ngày CI).
+#   - Allure GH Pages deploy: TASK 6 wire (cần Phuc enable Pages trong repo
+#     Settings + chọn Source = gh-pages branch). Step `deploy-pages` placeholder
+#     ở dưới — uncomment sau khi Pages enabled.
+#
+# Slack notify on failure: TASK 7 wire (cần Phuc tạo workspace + 2 channel
+# `#pr-failures` + `#qa-alerts` + 2 webhook URLs → add vào GH Secrets).
+name: Regression (nightly)
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: regression (full + network gated)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      ALLOW_NETWORK_INTEGRATION: '1'
+      ACCOUNT_POOL_CONFIG_PATH: ./src/utils/accountPool/pool.config.json
+      ACCOUNT_POOL_STATE_PATH: ./tmp/account-pool.state.json
+      ANDROID_DEVICE_NAME: ci-stub
+      ANDROID_PLATFORM_VERSION: '13'
+      APP_PATH: ./apps/SauceLabs-Demo-App.apk
+      ENV_PROFILE: local
+      NETWORK_SIM_DEFAULT: full
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Integration tests (gated network ON — real httpbin via ALLOW_NETWORK_INTEGRATION=1)
+        run: npm run test:integration
+
+      - name: API contract test (AC_API_DEMO_001)
+        run: npm run test:api
+
+      - name: Upload Allure results (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-regression-${{ github.run_id }}
+          path: reports/allure-results
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # M4 Task 6 — uncomment sau khi:
+      #   1. GitHub repo Settings → Pages → Source = `gh-pages` branch / root.
+      #   2. Composite action `.github/actions/publish-allure/action.yml` ship.
+      # - name: Generate + deploy Allure to GH Pages
+      #   if: always()
+      #   uses: ./.github/actions/publish-allure
+      #   with:
+      #     allure-results: reports/allure-results
+      #     target-subfolder: ${{ github.run_id }}
+
+      # M4 Task 7 — uncomment sau khi:
+      #   1. Slack workspace + #qa-alerts channel + incoming webhook tạo.
+      #   2. SLACK_WEBHOOK_QA add vào GH Secrets.
+      #   3. Composite action `.github/actions/notify-slack/action.yml` ship.
+      # - name: Notify Slack on failure
+      #   if: failure()
+      #   uses: ./.github/actions/notify-slack
+      #   with:
+      #     webhook-url: ${{ secrets.SLACK_WEBHOOK_QA }}
+      #     workflow: regression
+      #     run-id: ${{ github.run_id }}

@@ -1,0 +1,78 @@
+# CI gate (M4 Task 4) — non-device tier verify trên PR + push main.
+#
+# Plan ref: docs/plans/M4-cicd.md §3 in-scope, §2 done-criteria sub-point 2.
+# Q2 sign-off (2026-04-28): KHÔNG wire device farm → smoke E2E giữ local-dev
+# qua PR template honor-system gate (xem .github/PULL_REQUEST_TEMPLATE.md).
+# Workflow này KHÔNG chạy smoke E2E.
+#
+# Target wall: < 5 phút (single Linux job). Activate sharding khi suite > 5min.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Hủy run cũ khi push commit mới lên cùng PR/branch (tiết kiệm minutes).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify (typecheck + lint + unit + integration + api)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # M4 default: ALLOW_NETWORK_INTEGRATION OFF cho PR — gated tests skip.
+      # Nightly regression workflow set =1 để chạy real httpbin (xem regression.yml).
+      ALLOW_NETWORK_INTEGRATION: ''
+      # Account pool config (deterministic path trên runner).
+      ACCOUNT_POOL_CONFIG_PATH: ./src/utils/accountPool/pool.config.json
+      ACCOUNT_POOL_STATE_PATH: ./tmp/account-pool.state.json
+      # Required env (loadEnv Zod schema fail-fast nếu missing). Local-only
+      # placeholders — non-device tier không boot Appium nên không thực thi.
+      ANDROID_DEVICE_NAME: ci-stub
+      ANDROID_PLATFORM_VERSION: '13'
+      APP_PATH: ./apps/SauceLabs-Demo-App.apk
+      ENV_PROFILE: local
+      NETWORK_SIM_DEFAULT: full
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests (54 specs)
+        run: npm run test:unit
+
+      - name: Integration tests (8 + 2 gated — gated skip vì ALLOW_NETWORK_INTEGRATION='')
+        run: npm run test:integration
+
+      - name: API contract test (AC_API_DEMO_001 — real httpbin.org)
+        run: npm run test:api
+
+      - name: Upload Allure results (artifact only — Pages deploy ở regression.yml)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-ci-${{ github.run_id }}
+          path: reports/allure-results
+          if-no-files-found: ignore
+          retention-days: 7
