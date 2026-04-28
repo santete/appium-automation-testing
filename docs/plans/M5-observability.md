@@ -1,0 +1,261 @@
+# M5 — Observability & Intelligence
+
+> Implementation plan cho milestone M5. Workflow đầy đủ xem `docs/plans/README.md`.
+> ⚠ **Status: 📝 Planning (v0.1 draft)** — KHÔNG bắt đầu execute task nào trước khi Phuc DN sign-off + revise tới v1.0 + chuyển 🔵.
+
+## Metadata
+
+| Field | Value |
+|-------|-------|
+| Milestone ID | M5 |
+| Spec section | `automation_testing_requirement.md` §11 Phase 5 (Week 13-16), §6 + §7.4-7.8 |
+| Status | 📝 Planning |
+| Plan author | Claude Opus 4.7 (with Phuc DN) |
+| Plan version | v0.1 (draft) |
+| Created | 2026-04-28 |
+| Sign-off date | pending |
+| Sign-off by | Phuc DN |
+| Target start | 2026-04-29 (post sign-off) |
+| Target end | TBD — ước ~3-4 tuần thực thi (xem section 5 task estimate) |
+| Actual start | — |
+| Actual end | — |
+
+---
+
+## 1. Goal
+
+Auto-classify failure (decision tree §6.1) + dashboard trends + knowledge base (KB) + self-healing locator suggestions (PR-based, không auto-merge) + flaky detection.
+
+Đồng thời **giải quyết debt M4 → M5 carry-over**: setup channel publish report (GH Pages enable hoặc Vercel mirror), Slack/email notification, pipeline duration tracker.
+
+---
+
+## 2. Done criteria (acceptance test)
+
+> Failure mới → auto-classify với **confidence > 0.9** + suggest fix + KB pattern matched, **không cần human classify thủ công** cho 80% case.
+
+**Acceptance test cụ thể (đề xuất, sign-off chốt):**
+
+1. **Auto-classify accuracy:** chuẩn bị 20 failure mẫu (synthetic + replay từ run cũ), classifier tự gán {category, layer, reproducible, rootCause, routeTo} với confidence ≥ 0.9 cho **≥ 16/20** case (80%). Lưu confusion matrix.
+2. **Dashboard trends live:** Grafana (hoặc tool chosen) hiển thị 6 KPI realtime: pass rate (rolling 7d), flaky rate, top-5 flaky tests, MTTR, coverage %, P95 execution time. Acceptance: dashboard accessible từ link share, refresh < 30s sau khi run mới.
+3. **KB auto-update:** sau khi classifier match pattern X, append KB entry vào `docs/flaky_kb.md` (hoặc DB tương đương) — verify bằng cách trigger 1 known-flaky case → KB grow 1 entry với link RCA archive.
+4. **Self-healing PR open:** simulate locator break (rename `~test-Cart` thành `~test-CartV2` trong app), runner detect mismatch + AI suggest top-3 alternative locator (XPath / accessibility-id-fallback / class-by-text) → mở PR với title `[self-heal] LoginPage cart locator drift` + body explain confidence per option. **KHÔNG auto-merge** (verify branch protection block).
+5. **Flaky auto-quarantine:** chạy 30 lần 1 known-unstable test (intentional 70% pass rate) → auto-quarantine entry append vào `docs/quarantine.yaml` với deadline 14d + reason auto-generated từ failure pattern. M4 quarantine hook skip test correctly.
+6. **CI report channel:** sau mỗi PR/nightly run, Allure report accessible từ stable URL (GH Pages hoặc Vercel) trong < 2 phút sau workflow done. Verify URL share-able (không cần login GH).
+7. **Notification fan-out:** failure trên main → Slack `#qa-alerts` (hoặc Discord/email — chosen channel) trong < 5 phút với link Allure report + top-3 failure summary.
+
+---
+
+## 3. Scope
+
+### In scope (M5)
+
+- **Decision tree classifier** (§6.1) — rule-based hoặc LLM-augmented (decision pending), input: FailureMetadata + logs + screenshot, output: confidence-scored classification.
+- **Flaky detection engine** — track pass rate trên N run gần nhất, threshold-based auto-quarantine (Decision 7).
+- **Knowledge base (KB)** — markdown file hoặc DB; auto-update từ classifier; vector search optional (Decision pending).
+- **Self-healing locator suggestion** — diff-based locator drift detection + AI suggest alternatives + open PR (mandatory human review per spec §7.8).
+- **Dashboard** — pass rate / flaky / MTTR / coverage / execution time (§7.7).
+- **CI report channel** — GH Pages re-attempt (org policy may have changed) hoặc Vercel mirror (free tier).
+- **Notification** — Slack hoặc Discord/email (decision pending — Phuc workflow).
+- **Pipeline duration tracker** (M4 carry-over) — append CSV/Gist mỗi run, dashboard consume.
+
+### Out of scope (explicit)
+
+- **Performance test** + **visual regression** — defer M6 (spec §11 Phase 6).
+- **Cross-device matrix** — defer M6.
+- **Pact contract test với backend** — defer M6 (cần app team + Pact broker).
+- **iOS support** — defer M6 (vẫn chưa có Mac runner; M5 vẫn Android only).
+- **ML model training cho classifier** — M5 dùng rule-based hoặc LLM API call; train custom model defer M6+.
+- **Auto-fix locator merge** — spec §7.8 cấm; M5 chỉ open PR.
+
+---
+
+## 4. Technical decisions (DRAFT — sign-off cần)
+
+Trả lời TẤT CẢ "Plan checklist" trong ROADMAP.md M5 + thêm các decision mới phát sinh từ M4 carry-over.
+
+### Decision 1: Dashboard tool
+
+- **Question:** Grafana+InfluxDB / ReportPortal / Allure TestOps / custom?
+- **Options considered:**
+  - **A — Grafana + InfluxDB self-host:** linh hoạt, miễn phí; setup InfluxDB 2 + Grafana free tier; emit metrics từ test run qua HTTP API. Cons: maintain stack, cần Docker compose hoặc VPS.
+  - **B — ReportPortal (open-source):** thiết kế cho test result; Allure-like nhưng có analytics + history. Cons: heavyweight, cần Docker stack.
+  - **C — Allure TestOps SaaS:** zero-maintain; license phí (~$20/user/month); chính chủ Allure.
+  - **D — Custom dashboard (React/Next + sqlite/csv):** hoàn toàn tailored, chi phí dev cao; cons: re-invent the wheel.
+- **Decision (proposed):** **A — Grafana + InfluxDB self-host** (Docker compose trên dev workstation hoặc free Vercel/Render serverless DB).
+- **Rationale:** zero recurring cost, control toàn bộ schema, dễ migrate khi scale; M3 đã có pattern emit JSON từ test → InfluxDB ingest đơn giản. Alternative B (ReportPortal) overkill cho 1-eng team.
+- **Phuc input cần:** OK Grafana hay prefer dashboard tool khác?
+
+### Decision 2: Self-healing LLM API
+
+- **Question:** Claude / GPT / local model? Cost per suggestion?
+- **Options considered:**
+  - **A — Claude Sonnet API:** ~$3/1M input + $15/1M output; suggestion ~3K input (locator + page source) + ~500 output → ~$0.015/suggestion. 100 suggestion/month → $1.5. Quality high.
+  - **B — GPT-4o-mini:** rẻ hơn (~$0.15/1M in + $0.6/1M out). Quality thấp hơn cho structured suggestion.
+  - **C — Local Llama 3.1 8B qua Ollama:** zero cost runtime, cần GPU dev workstation; quality OK cho XPath suggest.
+  - **D — Heuristic only (no LLM):** match similar accessibility-id by Levenshtein, propose XPath fallback từ position. Quality low.
+- **Decision (proposed):** **A — Claude Sonnet API** với cost cap $20/month (alert nếu vượt). Phuc đã có Claude account, key reuse.
+- **Rationale:** quality matters cho human-review loop (low-quality suggest = noise = reviewer ignore). Cost trivial cho solo dev.
+- **Phuc input cần:** Claude API key có sẵn? Cost cap acceptable?
+
+### Decision 3: KB storage
+
+- **Question:** Markdown file / DB / vector store?
+- **Options considered:**
+  - **A — Single `docs/flaky_kb.md` markdown:** human-readable, git-tracked, low-tech. Cons: search bằng grep, không scale.
+  - **B — SQLite + FTS5 search:** still git-tracked (file binary OK), full-text search built-in. Cons: structured query needed.
+  - **C — Vector store (Chroma/Qdrant local):** semantic search ("test fail liên quan login race") → trả entry liên quan dù pattern khác text. Cons: maintain stack + embed cost.
+- **Decision (proposed):** **A markdown** for M5 entry; auto-promote sang B SQLite khi KB > 50 entry (deferred).
+- **Rationale:** start simple; markdown đủ cho 1-eng + search bằng grep; promote khi thấy pain.
+
+### Decision 4: Auto-quarantine threshold
+
+- **Question:** Pass rate < 90% trên N run nào?
+- **Options considered:**
+  - **A — < 90% trên 30 run gần nhất:** balanced (cần 4 fail trong 30 run để trigger).
+  - **B — < 80% trên 20 run gần nhất:** aggressive, false-positive (legit bug) bị quarantine.
+  - **C — Combined:** < 90% / 30 run **AND** ≥ 1 fail trong 5 run gần nhất (recent signal).
+- **Decision (proposed):** **C — combined**, với manual override (engineer có thể `quarantine: false` flag để force keep).
+- **Rationale:** vừa cover pattern flaky kéo dài vừa không quarantine test mà fail batch gần đây do legit bug.
+
+### Decision 5: Confidence score 0.9 — heuristic vs ML
+
+- **Question:** Confidence score tính thế nào?
+- **Options considered:**
+  - **A — Rule-based heuristic:** mỗi rule (regex match logcat / status code / element-not-found pattern) gán confidence; nhiều rule match → confidence cao.
+  - **B — LLM self-report:** Claude trả `{classification, confidence: 0.95}` qua structured output.
+  - **C — Combined:** rule-based first; ambiguous case (multiple match same weight) escalate LLM.
+- **Decision (proposed):** **C combined** — fast path (rule, 80% case) + slow path (LLM, 20% ambiguous).
+- **Rationale:** cost optimal, latency optimal, quality acceptable.
+
+### Decision 6: Notification channel
+
+- **Question:** Slack / Discord / email?
+- **Options considered:**
+  - **A — Slack:** original M4 spec; cần workspace + webhook. FPT Slack restricted (decision M4 → defer).
+  - **B — Discord:** free, 5-min webhook setup; Phuc có Discord personal.
+  - **C — Email (SMTP):** free, audit trail; cần SMTP relay (Gmail App Password).
+  - **D — GH Issue auto-create:** zero infra; Phuc đã ở GH; auto-close khi green.
+- **Decision (proposed):** **D GH Issue** primary + **C email** fallback cho off-hours alert.
+- **Rationale:** GH-native, zero new tool; email là backup cho urgent (failure trên main mà 4 giờ không vào GH).
+- **Phuc input cần:** prefer Discord không?
+
+### Decision 7: Report channel — GH Pages re-attempt vs Vercel
+
+- **Question:** GH Pages bị Enterprise org block (M4 finding). Re-attempt hay switch Vercel?
+- **Options considered:**
+  - **A — GH Pages re-attempt:** policy có thể đã unlock; check `gh api repos/santete/appium-automation-testing/pages` xem org enable.
+  - **B — Vercel mirror:** workflow rsync allure-results sang public repo `santete/automation-allure` → Vercel build static; URL `<project>.vercel.app/<run-id>/`.
+  - **C — Cloudflare Pages:** free tier 500 builds/month; tương tự Vercel.
+- **Decision (proposed):** A first (re-check); fallback B Vercel.
+- **Rationale:** GH Pages zero-config; Vercel cần extra repo + token.
+
+### Decision 8: M4 acceptance D5+D6 status
+
+- **Question:** D5+D6 vẫn open. M5 có wait không, hay parallel?
+- **Decision (proposed):** **Parallel** — M5 task 1-3 (classifier + KB + dashboard) độc lập với D5+D6 verify; Phuc có thể clear D5+D6 song song.
+- **Rationale:** unblock; D5+D6 chỉ là verify steps, không gate code change M5.
+
+### Decision 9: Plan-before-execute scope cho LLM/AI feature
+
+- **Question:** Self-healing + classifier có cần sub-plan riêng (LLM prompt design, API budget gate) không?
+- **Decision (proposed):** **Yes** — Task 4 (self-heal) + Task 1 (classifier) viết spike doc trong `docs/spikes/` trước khi implement; spike pass criteria mới move to implement.
+- **Rationale:** LLM behavior khó predict; spike để de-risk.
+
+---
+
+## 5. Task breakdown (DRAFT — finalize sau sign-off)
+
+| # | Task | Deliverable file | Estimate | Status | Skill |
+|---|------|------------------|----------|--------|-------|
+| 1 | Decision tree classifier (rule-based core) | `src/utils/classifier/{rules,engine,types}.ts` + 30 unit tests | 8h | ⬜ | `failure-rca` |
+| 2 | LLM augmentation cho ambiguous case | `src/utils/classifier/llmAdapter.ts` + Claude API integration + budget cap script | 6h | ⬜ | `failure-rca` |
+| 3 | Flaky detection + auto-quarantine PR generator | `src/utils/flaky/detector.ts` + `scripts/auto-quarantine-pr.cjs` (gh api PR open) | 5h | ⬜ | `test-validate` |
+| 4 | Self-healing locator spike + suggester | `docs/spikes/self-heal-locator.md` + `src/utils/selfHeal/suggester.ts` + GH Action workflow | 10h | ⬜ | `test-implement` |
+| 5 | Dashboard infra (Grafana + InfluxDB Docker compose) | `infra/observability/{docker-compose.yaml,grafana-dashboards/*.json,influxdb-init.sql}` | 6h | ⬜ | — |
+| 6 | Test run metric emit | `src/utils/metrics/influxEmitter.ts` + WDIO afterTest hook integration | 3h | ⬜ | — |
+| 7 | KB auto-update từ classifier | `docs/flaky_kb.md` schema + `src/utils/kb/appender.ts` | 3h | ⬜ | `failure-rca` |
+| 8 | Pipeline duration tracker (M4 carry-over) | `scripts/append-duration.cjs` + GH workflow step + Grafana panel | 2h | ⬜ | — |
+| 9 | Allure publish channel (GH Pages re-attempt → Vercel fallback) | `.github/workflows/publish-allure.yml` (composite) | 4h | ⬜ | — |
+| 10 | Notification — GH Issue auto-create on main fail + email fallback | `.github/workflows/notify-fail.yml` (gh api + smtp) | 3h | ⬜ | — |
+| 11 | RCA archive template + skill update | `docs/rca/_template.md` + `.claude/skills/failure-rca/SKILL.md` revise | 2h | ⬜ | `failure-rca` |
+| 12 | Acceptance test runbook + 20-failure replay corpus | `docs/runbook-M5-acceptance.md` + `tests/fixtures/m5-classifier-corpus/` | 5h | ⬜ | — |
+
+**Total estimate:** ~57h ≈ 7-8 work-day. Calendar 3-4 tuần (do solo dev + cần Phuc verify).
+
+## 6. Dependencies
+
+### Upstream (must finish first)
+
+- [ ] M4 done — cần test run history từ CI để feed classifier (ít nhất 50 run cho meaningful flaky stat).
+  - ⚠ **Currently:** M4 🟡 awaiting acceptance (D5+D6 open) — không block M5 plan draft, nhưng block M5 execute Task 1 (cần data).
+- [ ] Decision 1+2+6+7 sign-off (tool/API choice).
+
+### Downstream (block these)
+
+- M6 Optimization & Scale — cần classifier + dashboard data để measure baseline KPI (§8.1-8.3).
+
+### External dependencies
+
+- Claude API key (Phuc đã có).
+- Vercel account (nếu Decision 7 fallback B).
+- Discord workspace (nếu Decision 6 chuyển B).
+- Docker Desktop trên dev workstation (Decision 1 self-host).
+
+## 7. Risks & mitigations
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| LLM cost vượt $20/month | M | M | Budget gate trong `llmAdapter.ts`; fail-safe fallback rule-only khi exceed. |
+| Classifier confidence < 0.9 cho 80% (acceptance fail) | M | H | Spike Task 1 trước trên 5 sample; nếu rule-only đạt < 60% → escalate LLM augmentation Task 2 trước infra. |
+| Self-healing suggest noise (reviewer ignore) | M | M | Quality gate: confidence cutoff 0.7 mới open PR; thấp hơn skip. |
+| GH Pages vẫn block | M | L | Fallback Vercel ready (Decision 7). |
+| Dashboard infra maintenance burn | L | M | Pin Grafana + InfluxDB version; documented restart command; defer cloud nếu local không stable. |
+| Flaky detector false-positive auto-quarantine real bug | L | H | Decision 4 combined threshold + manual override flag. |
+| Spike Task 4 self-heal không khả thi với Sauce Demo offline | M | M | Spike result quyết định: nếu unfeasible, downgrade sang "passive locator drift detect" (no AI), defer suggestion M6. |
+
+## 8. Test plan (verify deliverables)
+
+- [ ] Unit test classifier engine — 30 case (5 per category × 6 categories từ §6.1) coverage ≥ 90%.
+- [ ] Integration test flaky detector — feed synthetic 30-run history, verify auto-quarantine entry generated chính xác.
+- [ ] Integration test self-heal suggester — mock breaking change locator → verify suggestion top-3 trong PR body.
+- [ ] Manual smoke: dashboard load < 30s sau test run; KB entry append correctly; GH Issue auto-open verified với 1 forced-fail.
+- [ ] Acceptance test §2 sub-points 1-7 pass.
+
+## 9. Rollback plan
+
+Nếu phải hủy giữa chừng:
+
+- Revert classifier integration trong WDIO config (afterTest hook không emit metric → fall back sang M4 behavior).
+- Stop Docker compose (`docker compose -f infra/observability/docker-compose.yaml down`).
+- Revoke Claude API key nếu bị leak.
+- Branch `feat/m5-*` không merge vào main → giữ M4 baseline.
+
+## 10. Sign-off checklist
+
+Trước khi chuyển status → 🔵 Plan ready:
+
+- [ ] Goal + Done criteria khớp ROADMAP.md
+- [ ] Scope rõ ràng (in/out)
+- [ ] Tất cả 5 "Plan checklist" trong ROADMAP.md M5 đã trả lời (Decision 1-5)
+- [ ] M4 carry-over 3 item (Allure host, Slack/notify, pipeline duration) đã fold vào M5 plan (Task 8+9+10)
+- [ ] Task breakdown có owner + estimate
+- [ ] Dependencies xác định (D5+D6 không block plan; block execute Task 1 chờ run history)
+- [ ] Risks đã thảo luận
+- [ ] Phuc DN approve Decision 1-9 (đặc biệt Claude API budget + Discord vs GH Issue notify)
+
+## 11. Status updates (weekly)
+
+| Date | Update | Blockers |
+|------|--------|----------|
+| 2026-04-28 | Plan v0.1 draft published autonomous batch (kết liền M4 framework completeness Đợt 1+2). 9 decisions proposed; chờ Phuc DN review + sign-off → revise v1.0 → 🔵 Plan ready. | M4 🟡 chưa close (D5+D6 manual verify); không block plan draft, block execute Task 1. |
+
+## 12. Plan revisions
+
+| Date | Change | Reason | Re-sign-off needed? |
+|------|--------|--------|---------------------|
+| — | (chưa có revision — plan v0.1 chưa sign-off) | | |
+
+## 13. Closure
+
+Điền khi mark milestone DONE — chưa relevant.

@@ -27,7 +27,7 @@
 | M2 | Validation Framework | 🟢 | [M2-validation-framework.md](docs/plans/M2-validation-framework.md) | 2026-04-28 → 2026-05-19 | 2026-04-27 → 2026-04-27 | — |
 | M3 | Test Data & Environment | 🟢 | [M3-test-data-env.md](docs/plans/M3-test-data-env.md) | 2026-04-28 → 2026-05-12 | 2026-04-27 → 2026-04-28 | — |
 | M4 | CI/CD Integration | 🟡 | [M4-cicd.md](docs/plans/M4-cicd.md) | 2026-04-29 → 2026-05-20 (3 tuần) | 2026-04-28 → — | — |
-| M5 | Observability & Intelligence | ⬜ | — | TBD | — | — |
+| M5 | Observability & Intelligence | 📝 | [M5-observability.md](docs/plans/M5-observability.md) | TBD (post sign-off) | — | M4 🟡 (D5+D6); plan draft sign-off |
 | M6 | Optimization & Scale | ⬜ | — | TBD | — | — |
 
 **Dependency graph:**
@@ -241,9 +241,10 @@ Non-device tier (typecheck + lint + unit + integration + api) chạy tự độn
 ## M5 — Observability & Intelligence
 
 **Map vào:** spec §11 Phase 5 (Week 13-16), §6 + §7.4-7.8
-**Status:** ⬜ Not started
-**Plan file:** _chưa tạo — sẽ ở `docs/plans/M5-observability.md`_
-**Depends on:** M4 done (cần dữ liệu run từ CI để build dashboard)
+**Status:** 📝 Planning (v0.1 draft 2026-04-28; chờ Phuc DN sign-off → revise v1.0 → 🔵 Plan ready)
+**Plan file:** [docs/plans/M5-observability.md](docs/plans/M5-observability.md)
+**Depends on:** M4 done (cần dữ liệu run từ CI để build dashboard) — currently 🟡 awaiting D5+D6
+**Carry-over từ M4:** Task 6 (Allure host), Task 7 (Slack/notify), Task 11 (pipeline duration tracker)
 
 ### Goal
 Auto-classify failure + dashboard trends + knowledge base + self-healing suggestion.
@@ -269,7 +270,9 @@ Auto-classify failure + dashboard trends + knowledge base + self-healing suggest
 - Confidence score 0.9 tính thế nào — heuristic hay ML?
 
 ### Status updates
-_(điền khi triển khai)_
+| Date | Update |
+|------|--------|
+| 2026-04-28 | Plan v0.1 draft published — 9 decisions proposed (dashboard tool, LLM API, KB storage, flaky threshold, confidence scoring, notify channel, report channel, M4 D5+D6 parallel, spike-first). 12 task breakdown ~57h estimate. M4 carry-over (Allure host, Slack/notify, pipeline duration) folded vào Task 8+9+10. **Status → 📝 Planning. Chờ Phuc DN review + sign-off.** Acceptance test 7 sub-points proposed. |
 
 ---
 
