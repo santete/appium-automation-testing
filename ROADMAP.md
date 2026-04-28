@@ -370,6 +370,7 @@ Ghi lại các quyết định technical quan trọng và lý do (giúp future C
 | 2026-04-28 | M4 quarantine mechanism = **custom Mocha hook + YAML** (không dùng `mocha-grep`) | Single source-of-truth (`docs/quarantine.yaml`), deadline enforcement automatic; `mocha-grep` không deadline-aware. Hook chạy trước global lease (skip throw before lease) tránh leak account. | M4 |
 | 2026-04-28 | M4 Allure publish = **GH Pages**, per-run subfolder, **30 ngày rolling cleanup** | Q9 sign-off — zero cost + native với GH Actions (`peaceiris/actions-gh-pages`); URL stable `<user>.github.io/<repo>/<run-id>/`. Allure TestOps paid → defer M5. | M4, M5 |
 | 2026-04-28 | M4 branch protection = **main only**, required check `ci / verify` + 1 review, force-push blocked | Q10 sign-off — single-eng project chưa cần `develop` flow. Override path documented (admin force-merge) cho emergency. | M4 |
+| 2026-04-28 | **Bump Node 20 LTS → 22 LTS** (CI workflows + `package.json` engines) — supersedes M1 decision row 4 | CI run đầu tiên fail vì `mocha --no-experimental-strip-types` không tồn tại trên Node 20 (M2 decision row 22 thêm flag để fix Node 22 default TS-strip; flag chỉ valid trên Node 22+). Dev machine đã Node 22.18.0 → align CI khớp. Node 22 = Active LTS từ 10/2024, không downgrade-only. | M4 (CI fix); M5+ giữ Node 22 |
 
 ---
 

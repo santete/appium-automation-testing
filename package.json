@@ -4,7 +4,7 @@
   "private": true,
   "description": "Mobile automation testing framework — Android local (M1), iOS via cloud farm (M4)",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "test": "wdio run ./src/config/wdio.local.ts",
