@@ -26,7 +26,7 @@
 | M1 | Foundation | 🟢 | [M1-foundation.md](docs/plans/M1-foundation.md) | 2026-04-27 → 2026-05-18 | 2026-04-27 → 2026-04-27 | — |
 | M2 | Validation Framework | 🟢 | [M2-validation-framework.md](docs/plans/M2-validation-framework.md) | 2026-04-28 → 2026-05-19 | 2026-04-27 → 2026-04-27 | — |
 | M3 | Test Data & Environment | 🟢 | [M3-test-data-env.md](docs/plans/M3-test-data-env.md) | 2026-04-28 → 2026-05-12 | 2026-04-27 → 2026-04-28 | — |
-| M4 | CI/CD Integration | 🔵 | [M4-cicd.md](docs/plans/M4-cicd.md) | 2026-04-29 → 2026-05-20 (3 tuần) | — | — |
+| M4 | CI/CD Integration | 🟡 | [M4-cicd.md](docs/plans/M4-cicd.md) | 2026-04-29 → 2026-05-20 (3 tuần) | 2026-04-28 → — | — |
 | M5 | Observability & Intelligence | ⬜ | — | TBD | — | — |
 | M6 | Optimization & Scale | ⬜ | — | TBD | — | — |
 
@@ -182,7 +182,7 @@ Test isolated hoàn toàn, không flaky vì data hoặc env.
 ## M4 — CI/CD Integration
 
 **Map vào:** spec §11 Phase 4 (Week 10-12), §7
-**Status:** 🔵 Plan ready (v1.0 signed-off 2026-04-28 by Phuc DN)
+**Status:** 🟡 In progress (v1.0 signed-off 2026-04-28; Task 1+2+3/19 done 2026-04-28 — repo bootstrapped + PR template + config-driven device-farm stubs)
 **Plan file:** [docs/plans/M4-cicd.md](docs/plans/M4-cicd.md)
 **Carry-over from M3:** D4 real-device verify (local-dev path: build minimal debuggable Kotlin test APK + run StateChecker `mobile:executeScript` backend trên dev Android device — device farm wire-up defer M5+)
 **Depends on:** M3 done ✅
@@ -194,12 +194,12 @@ Non-device tier (typecheck + lint + unit + integration + api) chạy tự độn
 > PR mở → CI gate (non-device) chạy **< 5 phút**, fail **block merge**; nightly regression fail → **notify Slack < 5 phút**; smoke E2E manual verify gate (PR template checklist); D4 real-device verify pass trên dev device.
 
 ### Deliverables
-- [ ] Repo bootstrapped: `git init` + push `github.com/santete/appium-automation-testing`, default branch `main`
+- [x] Repo bootstrapped: `git init` + push `github.com/santete/appium-automation-testing`, default branch `main` (commit `e0eb4b9`, 2026-04-28)
 - [ ] `.github/workflows/ci.yml` — PR + push to main, single Linux runner, typecheck + lint + unit + integration + api
 - [ ] `.github/workflows/regression.yml` — cron 2AM UTC + manual dispatch, full suite + `ALLOW_NETWORK_INTEGRATION=1`
 - [ ] `.github/workflows/actionlint.yml` — workflow self-lint
-- [ ] `.github/PULL_REQUEST_TEMPLATE.md` — smoke local verify checklist (honor system gate)
-- [ ] `src/config/wdio.bs.ts` + `wdio.sauce.ts` — config-driven stub (KHÔNG wire actual M4, M5+ swap)
+- [x] `.github/PULL_REQUEST_TEMPLATE.md` — smoke local verify checklist (honor system gate) (2026-04-28)
+- [x] `src/config/wdio.bs.ts` + `wdio.sauce.ts` — config-driven stub fail-fast guard (throw nếu BS_*/SAUCE_* empty), M5+ swap chỉ cần fill creds (2026-04-28)
 - [ ] Allure publish reusable composite action — deploy GH Pages `santete.github.io/appium-automation-testing/<run-id>/` (30-day retention)
 - [ ] Slack notification reusable composite — `#pr-failures` + `#qa-alerts`
 - [ ] Branch protection rule (gh api): main only, required check `ci / verify` + 1 review
@@ -227,6 +227,8 @@ Non-device tier (typecheck + lint + unit + integration + api) chạy tự độn
 |------|--------|
 | 2026-04-28 | Plan v0.1 draft với 12 decisions proposed + 12 open questions surface để Phuc DN sign-off. Status → 📝 Planning. Carry-over từ M3: D4 real-device verify (build minimal debuggable test APK + integration spec). |
 | 2026-04-28 | Phuc DN sign-off: Q1 = `santete/appium-automation-testing`, Q2 = KHÔNG wire device farm M4 (config-driven stub cho M5+ swap), Q3-Q12 OK. Plan revised v0.1 → v1.0: drop BS wire-up, drop sharding (single CI job), smoke E2E giữ local-dev với PR template "smoke local PASS" checkbox gate. Done criteria refactored 8 → 9 sub-points. Total estimate ~17h → ~14h, schedule 2026-04-29 → 2026-05-20. **Status → 🔵 Plan ready, sẵn sàng execute Task 1 (repo bootstrap).** |
+| 2026-04-28 | **Task 1 🟢** — repo bootstrap. `git init -b main` + `.gitignore` revise (add `tmp/`, `.gradle/`, `**/build/`, `local.properties`, `.claude/settings.local.json`); 80 files staged (no creds/build artifact leak); single squashed commit `e0eb4b9` "M1+M2+M3 baseline"; remote `https://github.com/santete/appium-automation-testing.git`; `git push -u origin main` SUCCESS. **Status → 🟡 In progress.** Next: Task 2 (README badge + PR template) + Task 3 (config-driven stub `wdio.bs.ts`). Block Task 6/7 cần Phuc enable GH Pages + tạo Slack webhooks. |
+| 2026-04-28 | **Task 2 + 3 🟢** — README CI + Allure GH Pages badge; `.github/PULL_REQUEST_TEMPLATE.md` với 5 checklist (auto CI gate + smoke local honor-system + multi-layer assertion + quarantine + plan-before-execute). Config-driven stubs `src/config/wdio.bs.ts` + `wdio.sauce.ts`: fail-fast guard throw khi creds empty → M5+ chỉ cần fill `.env.local` + uncomment `bstack:options`/`sauce:options` block. `.env.example` + Zod schema (`src/config/index.ts`) thêm SAUCE_* placeholder. Verify: typecheck ✅, lint ✅, unit 54/54 ✅. Next: Task 4 (CI workflow). |
 
 ---
 

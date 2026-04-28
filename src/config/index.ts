@@ -35,10 +35,13 @@ const EnvSchema = z.object({
   // ── Network sim ──────────────────────────────────────────
   NETWORK_SIM_DEFAULT: z.enum(['full', 'lte', 'umts', 'edge', 'gprs', 'none']).default('full'),
 
-  // ── Staging / device farm (placeholder, M3 không wire up) ─
+  // ── Device farm STUB (M4 không wire — Q2 sign-off; M5+ activate) ─
   BS_USERNAME: z.string().optional(),
   BS_ACCESS_KEY: z.string().optional(),
   BS_APP_URL: z.string().optional(),
+  SAUCE_USERNAME: z.string().optional(),
+  SAUCE_ACCESS_KEY: z.string().optional(),
+  SAUCE_APP_STORAGE_ID: z.string().optional(),
 
   // ── Integration tests ────────────────────────────────────
   ALLOW_NETWORK_INTEGRATION: z

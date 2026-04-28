@@ -1,10 +1,13 @@
 # Mobile Automation Testing Framework
 
+[![CI](https://github.com/santete/appium-automation-testing/actions/workflows/ci.yml/badge.svg)](https://github.com/santete/appium-automation-testing/actions/workflows/ci.yml)
+[![Allure Report](https://img.shields.io/badge/allure-report-blue)](https://santete.github.io/appium-automation-testing/)
+
 Mobile automation testing system theo nguyên tắc **trustworthy-by-design** (multi-layer assertion + addressed feedback routing + human-in-the-loop). Stack: WebdriverIO 8 + Appium 2 + TypeScript.
 
 ## Trạng thái
 
-🚧 **Đang xây dựng** — milestone hiện tại: M1 Foundation.
+🟡 **M1 + M2 + M3 done; M4 in progress** (CI/CD integration — non-device tier + smoke local gate).
 Tiến độ chi tiết: [`ROADMAP.md`](ROADMAP.md).
 
 ## Quick start
@@ -47,13 +50,22 @@ reports/           # generated, gitignored
 ## Common scripts
 
 ```bash
-npm run test:smoke      # smoke suite
-npm run test            # full suite (slow)
-npm run lint            # ESLint — enforces no-pause rule + spec patterns
-npm run typecheck       # TypeScript strict check
-npm run format          # Prettier
-npm run allure:open     # view last test report
+npm run test:smoke         # smoke suite (local emulator/device)
+npm run test:smoke:20x     # 20x smoke runner (acceptance: data isolation + cleanup verify)
+npm run test:unit          # 54 unit tests, ~1s
+npm run test:integration   # 8 integration tests (+2 gated by ALLOW_NETWORK_INTEGRATION=1)
+npm run test:api           # AC_API_DEMO_001 contract real httpbin.org
+npm run lint               # ESLint — enforces no-pause rule + spec patterns
+npm run typecheck          # TypeScript strict check
+npm run format             # Prettier
+npm run allure:open        # view last test report
 ```
+
+## Merge gate (M4)
+
+Mọi PR phải tick checklist trong [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md):
+- **Auto (CI):** typecheck + lint + unit + integration + api PASS — block merge khi RED.
+- **Honor system (manual):** `npm run test:smoke` PASS local trên dev device + paste evidence link. Reviewer enforce. M5+ wire device farm để auto-block.
 
 ## Đóng góp
 
