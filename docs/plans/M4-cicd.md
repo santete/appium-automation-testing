@@ -8,7 +8,7 @@
 |-------|-------|
 | Milestone ID | M4 |
 | Spec section | `automation_testing_requirement.md` §7 + §11 Phase 4 |
-| Status | 🟡 In progress (v1.1 revised 2026-04-28; Task 1+2+3+4+5+8+9+12/19 done 2026-04-28; Task 6+7+11 deferred M5) |
+| Status | 🟡 Awaiting acceptance (v1.1 revised 2026-04-28; Task 1-5+8-10+12-17/19 done 2026-04-28; Task 6+7+11 deferred M5; Task 18 partial — 5/7 sub-points auto-PASS, 1-2-3-4 GH UI manual + 6 device manual; Task 19 closure pending) |
 | Plan author | Claude + Phuc DN |
 | Plan version | v1.0 (signed-off 2026-04-28) |
 | Created | 2026-04-28 |
@@ -186,16 +186,16 @@ Test **non-device tier** (typecheck + lint + unit + integration + api) chạy t�
 | 7 | ~~Slack notification reusable composite~~ — **DEFER M5** (Actions tab native notification đủ solo) | ~~`.github/actions/notify-slack/action.yml`~~ | — | 🔵 Deferred | — |
 | 8 | Quarantine YAML + Zod schema + custom Mocha hook | `docs/quarantine.yaml`, `tests/_hooks/quarantine.ts`, schema | 1h | 🟢 | test-implement |
 | 9 | Quarantine deadline check script + CI step | `scripts/check-quarantine.cjs` | 0.5h | 🟢 | — |
-| 10 | Branch protection setup script (minimal — solo, không require review) | `scripts/setup-branch-protection.sh` (gh api PUT) | 0.2h | ⬜ | — |
+| 10 | Branch protection setup script (minimal — solo, không require review) | `scripts/setup-branch-protection.sh` (gh api PUT) | 0.2h | 🟢 | — |
 | 11 | ~~Pipeline duration baseline tracker~~ — **DEFER M5** (M5 dashboard mới consume data) | ~~`scripts/append-duration.cjs`~~ | — | 🔵 Deferred | — |
 | 12 | actionlint workflow self-lint | `.github/workflows/actionlint.yml` | 0.5h | 🟢 | — |
-| 13 | Build minimal debuggable test APK source | `apps/test-debuggable-src/` Android Studio project (Kotlin, Gradle wrapper, 1 Activity + SharedPreferences) | 2h | ⬜ | test-data-setup |
-| 14 | Local APK build script | `scripts/build-test-apk.cjs` wrap `./gradlew assembleDebug` | 0.3h | ⬜ | test-data-setup |
-| 15 | **D4 carry-over**: real-device integration spec | `tests/integration/state-checker-mobile-real.spec.ts` (local-dev only, requires `RUN_REAL_DEVICE=1` gate) | 1h | ⬜ | assertion-contract |
-| 16 | Smoke local verify gate documentation | `docs/runbook-pr-merge-gate.md` | 0.3h | ⬜ | — |
-| 17 | Acceptance runbook M4 | `docs/runbook-M4-acceptance.md` (9 sub-points) | 0.5h | ⬜ | — |
-| 18 | M4 acceptance run (9 sub-points) | (verification) | 1.5h | ⬜ | test-validate |
-| 19 | Update ROADMAP + plan closure | `ROADMAP.md`, this file | 0.3h | ⬜ | — |
+| 13 | Build minimal debuggable test APK source | `apps/test-debuggable-src/` Android Studio project (Kotlin, Gradle wrapper, 1 Activity + SharedPreferences) | 2h | 🟢 | test-data-setup |
+| 14 | Local APK build script | `scripts/build-test-apk.cjs` wrap `./gradlew assembleDebug` | 0.3h | 🟢 | test-data-setup |
+| 15 | **D4 carry-over**: real-device integration spec | `tests/integration/state-checker-mobile-real.spec.ts` (local-dev only, requires `RUN_REAL_DEVICE=1` gate) | 1h | 🟢 | assertion-contract |
+| 16 | Smoke local verify gate documentation | `docs/runbook-pr-merge-gate.md` | 0.3h | 🟢 | — |
+| 17 | Acceptance runbook M4 | `docs/runbook-M4-acceptance.md` (7 sub-points v1.1) | 0.5h | 🟢 | — |
+| 18 | M4 acceptance run (7 sub-points; 5/7 automated done — 1+2+3+4 GH UI manual + 6 device manual) | (verification) | 1.5h | 🟡 | test-validate |
+| 19 | Update ROADMAP + plan closure | `ROADMAP.md`, this file | 0.3h | 🟡 | — |
 
 **Total estimate:** ~14h v1.0 → **~10h v1.1** (defer Task 6+7+11 = drop ~2.4h ship effort + drop Slack/Pages setup ~3-4h). Realistic schedule: 2026-04-28 → ~2026-05-08 (~1.5 tuần) post-revision.
 
@@ -290,6 +290,7 @@ Nếu phải hủy giữa chừng:
 | 2026-04-28 | **Task 8 + 12 🟢** — Quarantine mechanism (`src/utils/quarantine/{schema,loader}.ts` + `tests/_hooks/quarantine.ts` + `docs/quarantine.yaml` + 21 unit tests). Zod schema validate `{test_id, reason≥10, added, deadline, owner}` + 2 refinements (deadline ≥ added, deadline ≤ added + 21 ngày = 14 default + 7 grace). Loader: file missing/null YAML → empty (graceful), invalid → throw với issue path. Mocha root hook đọc YAML init, beforeEach match `fullTitle()` → future deadline `this.skip()`, past deadline throw error message với owner + reason + max-extend hint. Hook wired vào tất cả mocharc (unit/integration/api) + WDIO configs (local/staging/bs/sauce) — quarantine FIRST trong require list để skip-before-lease tránh leak AccountPool slot. Verify: `npm run typecheck` ✅, `npm run lint` ✅, `npm run test:unit` 75/75 ✅ (54 + 21 quarantine), `npm run test:integration` ✅, `npm run test:api` ✅. Task 12: `.github/workflows/actionlint.yml` self-lint dùng `docker://rhysd/actionlint`, trigger paths-filtered cho `.github/workflows/**`, 5min timeout, concurrency cancel-in-progress. | Task 9 (deadline check script CI gate) sẵn sàng next. Task 6+7 vẫn block chờ Phuc Pages + Slack. |
 | 2026-04-28 | **Plan revision v1.0 → v1.1 — solo-local focus.** Defer Task 6 (Allure host: GH Pages bị Enterprise block, Vercel không justify cho solo dev), Task 7 (Slack: kênh thông báo setup sau), Task 11 (pipeline duration: M5 dashboard mới cần) sang M5. Decision 7 revised: drop "1 review required" cho branch protection (solo workflow không có reviewer). Done criteria 9 sub-points → 7 (xóa Slack notify + Allure host + duration baseline; giữ CI + branch protection + quarantine deadline check + D4 + smoke gate + farm stub). Estimate ~14h → ~10h. M4 còn lại: Task 9 (quarantine CI), Task 10 (branch protection minimal), Task 13-15 (D4 Kotlin APK + spec), Task 16 (smoke runbook), Task 17-19 (acceptance + closure). | None — focus task quan trọng để framework chạy solo local. |
 | 2026-04-28 | **Task 9 🟢** — Quarantine deadline check CI gate. `scripts/check-quarantine.cjs` reuse `loadQuarantine` qua `ts-node/register/transpile-only` (single source of truth, không duplicate schema validation; transpile-only skip type check vì CI chạy `npm run typecheck` riêng). 3 path verify: (a) empty entries → exit 0 PASS, (b) past-deadline entries → exit 1 FAIL với output owner/reason/deadline, (c) schema invalid → exit 1 FAIL với issue path. Wired vào `ci.yml` + `regression.yml` step "Quarantine deadline check" sau Lint trước Unit. `package.json` thêm script `npm run check:quarantine`. Cũng update `regression.yml` xoá Task 6/7 placeholder comments → ghi note plan v1.1 defer M5. | None — Task 10 (branch protection minimal), Task 13-15 (D4 Kotlin APK) tiếp theo. |
+| 2026-04-28 | **Task 10 + 13-17 🟢** — Plow through autonomous batch (Phuc upfront approval). (10) `scripts/setup-branch-protection.sh` gh api PUT minimal config: required check `verify` strict, no PR review, force-push + deletion blocked, admin override allowed. (13) `apps/test-debuggable-src/` Kotlin Android Studio project: AGP 8.2.2 + Kotlin 1.9.22 + Gradle 8.5, minSdk 24 / targetSdk 34, package `com.santete.statetest`, `MainActivity.onCreate` write `m4_state_test_key=ok` vào 2 prefs file (default `<pkg>_preferences.xml` + custom `state_test_prefs.xml`). (14) `scripts/build-test-apk.cjs` bootstrap Gradle wrapper jar + scripts từ `gradle/gradle@v8.5.0` (Gradle CLI chưa cài), idempotent download skip nếu present, run `gradlew assembleDebug`, copy APK → `apps/state-test-debug.apk` stable path. `npm run build:test-apk`. (15) `tests/integration/state-checker-mobile-real.spec.ts` gated `RUN_REAL_DEVICE=1` (CI skip, integration suite show 2 pending), uses `webdriverio.remote()` standalone Appium session, install + launch state-test, lookup qua `mobile:executeScript` adapter → assert `=== 'ok'`. Negative case: absent key → `not_null` fail. Cleanup uninstall + deleteSession. (16) `docs/runbook-pr-merge-gate.md` 7-section runbook: 2-tầng gate (auto CI + smoke local honor-system), branch protection setup script + UI alternative, smoke evidence requirements, quarantine discipline, emergency override. (17) `docs/runbook-M4-acceptance.md` 7 sub-points coverage map + step-by-step verify procedures (auto + manual GH UI + device-dependent). | Task 18 (acceptance run) — 5/7 automated PASS local: typecheck/lint/quarantine 3 path/unit 75/integration 8+4 pending/api 1; sub-points 1-2-3-4 cần Phuc verify GH UI manual; sub-point 6 cần Phuc plug Android device. |
 
 ## 12. Plan revisions
 
@@ -300,4 +301,20 @@ Nếu phải hủy giữa chừng:
 
 ## 13. Closure
 
-_(Pending execution.)_
+### Status 2026-04-28 (post-Task 17)
+
+**Auto-shippable scope (15/19 tasks done):**
+Task 1, 2, 3, 4, 5, 8, 9, 10, 12, 13, 14, 15, 16, 17 → 🟢. Task 6, 7, 11 → 🔵 Deferred M5.
+
+**Acceptance status (Task 18):**
+- ✅ Sub-point 5 (quarantine 3-path) — automated PASS local 2026-04-28.
+- ✅ Sub-point 7 (smoke local gate artifacts) — automated PASS (PR template + runbook + branch-protection script present).
+- ✅ Local CI parity — typecheck + lint + unit (75) + integration (8 + 4 pending gated) + api (1) all PASS.
+- 🟡 Sub-point 1 (branch protection applied trên `main`) — chờ Phuc chạy `./scripts/setup-branch-protection.sh` (cần `gh` CLI auth) hoặc UI alternative `docs/runbook-pr-merge-gate.md` §3b.
+- 🟡 Sub-point 2 (CI gate trên test PR) — chờ Phuc tạo test PR + screenshot Actions tab.
+- 🟡 Sub-point 3 (forced-fail block merge) — chờ Phuc verify trên cùng test PR.
+- 🟡 Sub-point 4 (nightly regression manual dispatch) — chờ Phuc `gh workflow run regression.yml` hoặc UI dispatch.
+- 🟡 Sub-point 6 (D4 real-device) — chờ Phuc plug Android device + chạy `npm run build:test-apk` + `RUN_REAL_DEVICE=1 npm run test:integration`.
+
+**Next:** Phuc chạy 5 manual checks (1+2+3+4 GH UI, 6 device) → mark M4 🟢 + Task 18+19 🟢.
+

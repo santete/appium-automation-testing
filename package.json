@@ -20,6 +20,7 @@
     "format:check": "prettier --check \"**/*.{ts,json,md,yaml,yml}\"",
     "typecheck": "tsc --noEmit",
     "check:quarantine": "node ./scripts/check-quarantine.cjs",
+    "build:test-apk": "node ./scripts/build-test-apk.cjs",
     "allure:generate": "allure generate ./reports/allure-results -o ./reports/allure-report --clean",
     "allure:open": "allure open ./reports/allure-report",
     "allure:serve": "allure serve ./reports/allure-results"
