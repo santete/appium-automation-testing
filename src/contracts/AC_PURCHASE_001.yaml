@@ -1,0 +1,51 @@
+# AC_PURCHASE_001 — Regression: End-to-end purchase happy path
+#
+# Flow: login (standard_user) → add product → open cart → checkout → fill info
+#       → continue → finish → CHECKOUT: COMPLETE!
+#
+# Spec ref: §5.2 Assertion Contract, §6 multi-layer.
+# Plan ref: framework completeness Đợt 1.6.
+#
+# Multi-layer: UI (post-finish complete indicator + cart_absent on done screen)
+#              + Negative (no app crash, no ANR throughout flow).
+# state_layer skip — Sauce Demo release-signed (D4 documented).
+# api_layer skip — Sauce Demo offline (D3 covered qua AC_API_DEMO_001).
+
+contract_id: AC_PURCHASE_001
+test_scenario: TC_PURCHASE_001
+schema_version: v1
+description: |
+  Buy 1 product end-to-end qua Sauce Demo App. Sau FINISH phải land trên
+  step 3 với "CHECKOUT: COMPLETE!" indicator. Verify UI + Negative crash log.
+
+positive:
+  ui_layer:
+    - id: ui.complete_indicator_visible
+      type: element_visible
+      severity: critical
+      locator: ~test-CHECKOUT: COMPLETE!
+
+    - id: ui.back_home_clickable
+      type: element_visible
+      severity: high
+      locator: ~test-BACK HOME
+
+    - id: ui.error_absent
+      type: element_absent
+      severity: high
+      locator: ~test-Error message
+
+negative:
+  - id: neg.no_app_crash
+    type: log_pattern_absent
+    severity: critical
+    log_source: logcat
+    pattern: "Process:\\s*com\\.swaglabsmobileapp"
+    securityImpact: false
+
+  - id: neg.no_anr_logcat
+    type: log_pattern_absent
+    severity: high
+    log_source: logcat
+    pattern: "ANR in com\\.swaglabsmobileapp"
+    securityImpact: false

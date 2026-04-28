@@ -1,0 +1,53 @@
+# AC_LOGIN_NEG_001 — Negative: Login với invalid credentials → error message + stay on login screen
+#
+# Scope: 2 fail mode chuẩn của Sauce Demo:
+#   - Wrong password → "Username and password do not match any user in this service."
+#   - Locked-out user (`locked_out_user`) → "Sorry, this user has been locked out."
+#
+# Spec ref: §5.2 Assertion Contract, §6 multi-layer (UI + Negative crash log).
+# Plan ref: framework completeness Đợt 1.5.
+#
+# Multi-layer: UI (error visible + login form còn) + Negative (no app crash).
+# State_layer skip — Sauce Demo release-signed (D4 documented). API skip
+# (Sauce Demo offline — D3 covered qua AC_API_DEMO_001).
+
+contract_id: AC_LOGIN_NEG_001
+test_scenario: TC_LOGIN_NEG_001
+schema_version: v1
+description: |
+  Login với invalid credentials → app hiển thị error message + giữ user trên
+  login screen. Không có crash hoặc ANR. Spec test với 2 case: wrong password
+  và locked_out_user — cả 2 share cùng contract (chỉ khác text expected verify
+  ở spec layer, không cần 2 contract riêng).
+
+positive:
+  ui_layer:
+    - id: ui.error_visible
+      type: element_visible
+      severity: critical
+      locator: ~test-Error message
+
+    - id: ui.login_form_still_present
+      type: element_visible
+      severity: high
+      locator: ~test-Username
+
+    - id: ui.cart_absent
+      type: element_absent
+      severity: high
+      locator: ~test-Cart
+
+negative:
+  - id: neg.no_app_crash
+    type: log_pattern_absent
+    severity: critical
+    log_source: logcat
+    pattern: "Process:\\s*com\\.swaglabsmobileapp"
+    securityImpact: false
+
+  - id: neg.no_anr_logcat
+    type: log_pattern_absent
+    severity: high
+    log_source: logcat
+    pattern: "ANR in com\\.swaglabsmobileapp"
+    securityImpact: false

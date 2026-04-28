@@ -1,8 +1,27 @@
-# Runbook — M1 Foundation Setup
+# Runbook — Local execution (M1 → M4)
 
-> Mục tiêu: Junior engineer pull repo → chạy được smoke test trong **30 phút** trên Windows 11.
-> Spec: `automation_testing_requirement.md` §11 Phase 1.
-> Plan: `docs/plans/M1-foundation.md`.
+> Mục tiêu: Junior engineer pull repo → chạy được smoke + regression + negative + nightly suites trên máy local (Windows 11) bằng emulator hoặc real device.
+> Spec: `automation_testing_requirement.md` §11.
+> Plan: `docs/plans/M1-foundation.md`, `docs/plans/M4-cicd.md`.
+
+---
+
+## TL;DR (cho người đã setup xong)
+
+```bash
+# Real device qua USB (đã enable USB debugging + adb authorized):
+adb devices                       # device id phải xuất hiện
+npm run test:smoke                # ~30s
+npm run test:regression           # ~1.5 phút (mỗi spec)
+npm run test:negative             # ~1 phút
+npm run test:nightly              # ~1.5 phút
+
+# Emulator (AVD Pixel_6_API_33 đang chạy):
+emulator -avd Pixel_6_API_33 &    # nếu chưa chạy
+npm run test:smoke
+```
+
+> Nếu chưa setup → đọc §1 → §6 trước. §11 mô tả cách switch giữa device và emulator.
 
 ---
 
@@ -237,3 +256,128 @@ Verify acceptance test M1 (`docs/plans/M1-foundation.md` §2):
 - [ ] Smoke test chạy 5 lần liên tục → 5/5 pass
 
 Nếu tất cả ✓ → báo lại để mark M1 status 🟢 và start planning M2.
+
+---
+
+## 11. Real device qua USB (alternative cho emulator)
+
+Real device cho speed (UI animation thật) + reproducibility tránh emulator quirks.
+
+### 11.1 Chuẩn bị device
+
+1. **Settings → About phone** → tap **Build number** 7 lần → Developer options unlock.
+2. **Settings → Developer options** → enable **USB debugging**.
+3. Nối USB → trên device popup *"Allow USB debugging from this computer?"* → tick **Always allow** → OK.
+
+### 11.2 Verify adb thấy device
+
+```bash
+adb devices
+# → List of devices attached
+#   R5CW20XXXXX   device         ← device id (KHÔNG phải "unauthorized")
+```
+
+> Nếu hiện `unauthorized` → unplug + replug + accept popup lại.
+> Nếu hiện `offline` → `adb kill-server && adb start-server`.
+
+### 11.3 Cập nhật `.env.local`
+
+```bash
+# .env.local — switch từ emulator sang device thực
+ANDROID_DEVICE_NAME=R5CW20XXXXX     # ← device id từ `adb devices`
+ANDROID_PLATFORM_VERSION=14         # ← Android version trên device, vd. 14
+APP_PATH=apps/SauceLabs-Demo-App.apk
+```
+
+### 11.4 Pre-install vs auto-install
+
+Mặc định `wdio.local.ts` dùng `appium:noReset: false` + `appium:app` → Appium tự install + uninstall app mỗi session.
+
+Nếu muốn pre-install (debug nhanh hơn):
+
+```bash
+adb install -r apps/SauceLabs-Demo-App.apk
+```
+
+Sau pre-install, có thể tạm comment `appium:app` trong wdio config + add `'appium:appPackage': 'com.swaglabsmobileapp'` + `'appium:appActivity': 'com.swaglabsmobileapp.MainActivity'`. Không bắt buộc — default flow hoạt động.
+
+---
+
+## 12. Emulator advanced — chuyển AVD, rebuild máy mới
+
+### 12.1 List AVD hiện có
+
+```bash
+emulator -list-avds
+# → Pixel_6_API_33
+```
+
+### 12.2 Tạo AVD mới qua CLI (không cần mở Android Studio)
+
+```bash
+sdkmanager "system-images;android-33;google_apis;x86_64"
+avdmanager create avd \
+  -n Pixel_7_API_34 \
+  -k "system-images;android-33;google_apis;x86_64" \
+  -d pixel_7
+```
+
+Update `.env.local`:
+
+```bash
+ANDROID_DEVICE_NAME=Pixel_7_API_34
+ANDROID_PLATFORM_VERSION=14
+```
+
+### 12.3 Khởi động emulator headless (CI-style local)
+
+```bash
+emulator -avd Pixel_6_API_33 -no-window -no-audio -no-boot-anim &
+adb wait-for-device
+adb shell getprop sys.boot_completed   # phải in '1' trước khi run test
+```
+
+---
+
+## 13. Chạy từng suite
+
+| Suite | Command | Thời lượng (1 device) | Khi dùng |
+|-------|---------|------------------------|---------|
+| smoke | `npm run test:smoke` | ~30s | PR gate (CI) + sanity local |
+| regression | `npm run test:regression` | ~2 phút | Trước merge feature lớn |
+| negative | `npm run test:negative` | ~1 phút | Verify error handling |
+| nightly | `npm run test:nightly` | ~1.5 phút | Daily cron + edge case verify |
+
+Chạy 1 spec cụ thể:
+
+```bash
+npx wdio run src/config/wdio.local.ts \
+  --spec tests/regression/purchase-happy-path.spec.ts
+```
+
+---
+
+## 14. Troubleshooting bổ sung (M2-M4)
+
+| Symptom | Nguyên nhân | Fix |
+|---------|-------------|-----|
+| `MissingContractError: AC_*.yaml not found` | YAML chưa có trong `src/contracts/` | Verify file tồn tại + tên contract khớp `runContractById` arg |
+| `process_alive not configured for AC_*` | Negative checker thiếu `isProcessAlive` callback | OK nếu contract không có check `process_alive` — error chỉ throw khi runner gọi (defensive) |
+| Logcat không capture được `~test-Error message` | `getLogs('logcat')` Sauce Demo trả empty trên một số device | Dùng `adb logcat -c && adb logcat -d` thủ công verify; nếu empty là device-side issue, không phải framework bug |
+| Quarantine skip toàn bộ test | `quarantine.json` có entry hết hạn | `npm run check:quarantine` xem deadline; remove entry hoặc renew |
+| State checker test fail trên Sauce Demo | Sauce Demo release-signed, không cho `EXEC` qua Appium | Đây là known D4 — dùng `apps/state-test-debug.apk` build qua `npm run build:test-apk` (xem README app) |
+
+---
+
+## 15. Generate + view Allure report
+
+```bash
+npm run allure:generate    # build static HTML từ allure-results/
+npm run allure:open        # mở browser local (port random)
+```
+
+Allure attaches:
+- Screenshot on failure (afterTest hook)
+- Page source dump XML
+- Multi-layer assertion verdict (status + per-check result)
+- Logcat samples khi negative checker chạy

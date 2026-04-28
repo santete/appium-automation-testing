@@ -1,0 +1,40 @@
+# AC_CHECKOUT_NEG_001 — Negative: Checkout step 1 với empty First Name
+#
+# Flow: login → add product → open cart → checkout → tap CONTINUE với
+# First Name empty → expect error message + stay on step 1.
+#
+# Spec ref: §5.2 contract, §6 multi-layer.
+# Plan ref: framework completeness Đợt 1.7 (nightly edge case).
+
+contract_id: AC_CHECKOUT_NEG_001
+test_scenario: TC_CHECKOUT_NEG_001
+schema_version: v1
+description: |
+  Submit checkout step 1 với First Name trống → Sauce Demo show
+  "First Name is required" error + giữ user trên step 1 (First Name input
+  vẫn visible). Verify UI + Negative crash log.
+
+positive:
+  ui_layer:
+    - id: ui.error_visible
+      type: element_visible
+      severity: critical
+      locator: ~test-Error message
+
+    - id: ui.first_name_input_still_present
+      type: element_visible
+      severity: high
+      locator: ~test-First Name
+
+    - id: ui.complete_indicator_absent
+      type: element_absent
+      severity: critical
+      locator: ~test-CHECKOUT: COMPLETE!
+
+negative:
+  - id: neg.no_app_crash
+    type: log_pattern_absent
+    severity: critical
+    log_source: logcat
+    pattern: "Process:\\s*com\\.swaglabsmobileapp"
+    securityImpact: false

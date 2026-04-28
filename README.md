@@ -50,13 +50,18 @@ reports/           # generated, gitignored
 ## Common scripts
 
 ```bash
-npm run test:smoke         # smoke suite (local emulator/device)
+npm run test:smoke         # smoke suite (login)
+npm run test:regression    # regression suite (purchase happy path)
+npm run test:negative      # negative suite (invalid login: 2 cases)
+npm run test:nightly       # nightly edge cases (empty checkout fields)
 npm run test:smoke:20x     # 20x smoke runner (acceptance: data isolation + cleanup verify)
-npm run test:unit          # 54 unit tests, ~1s
-npm run test:integration   # 8 integration tests (+2 gated by ALLOW_NETWORK_INTEGRATION=1)
+npm run test:unit          # 75 unit tests, ~1s
+npm run test:integration   # 8 integration tests (+2 gated by ALLOW_NETWORK_INTEGRATION=1, +2 gated by RUN_REAL_DEVICE=1)
 npm run test:api           # AC_API_DEMO_001 contract real httpbin.org
 npm run lint               # ESLint — enforces no-pause rule + spec patterns
 npm run typecheck          # TypeScript strict check
+npm run check:quarantine   # validate docs/quarantine.yaml + deadline check
+npm run build:test-apk     # build apps/state-test-debug.apk (D4 verify, requires JDK + Android SDK)
 npm run format             # Prettier
 npm run allure:open        # view last test report
 ```

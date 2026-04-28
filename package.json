@@ -14,6 +14,8 @@
     "test:smoke": "wdio run ./src/config/wdio.local.ts --suite smoke",
     "test:smoke:20x": "node ./scripts/run-smoke-Nx.cjs 20",
     "test:regression": "wdio run ./src/config/wdio.local.ts --suite regression",
+    "test:negative": "wdio run ./src/config/wdio.local.ts --suite negative",
+    "test:nightly": "wdio run ./src/config/wdio.local.ts --suite nightly",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"**/*.{ts,json,md,yaml,yml}\"",
