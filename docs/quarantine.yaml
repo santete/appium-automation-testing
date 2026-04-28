@@ -1,0 +1,28 @@
+# Quarantine list — test tạm thời skip với deadline enforcement.
+#
+# Plan ref: docs/plans/M4-cicd.md §3 Task 8 + Decision 10/12.
+#
+# ─── Schema (Zod-validated qua src/utils/quarantine/schema.ts) ────
+# entries:
+#   - test_id: string         # Mocha fullTitle() match (vd. "Suite > Sub > Test name")
+#     reason: string          # ≥10 ký tự — link RCA, GH issue, hoặc Slack thread
+#     added: YYYY-MM-DD       # ngày thêm
+#     deadline: YYYY-MM-DD    # default = added + 14, max = added + 21 (14 + 7 grace)
+#     owner: string           # email hoặc handle người chịu trách nhiệm
+#
+# ─── Behavior (tests/_hooks/quarantine.ts) ────────────────────────
+# - deadline > today (UTC)  → this.skip() — test pending, KHÔNG count fail
+# - deadline ≤ today (UTC)  → throw → CI fail buộc fix hoặc extend grace
+#
+# ─── Extend grace ─────────────────────────────────────────────────
+# - Default deadline = added + 14 ngày.
+# - Extend tối đa 1 lần qua PR review, deadline mới ≤ added + 21 ngày.
+# - Past 21 ngày → bắt buộc fix (không extend nữa).
+#
+# ─── CI enforcement (Task 9) ──────────────────────────────────────
+# `scripts/check-quarantine.cjs` chạy trong CI gate:
+# - Validate YAML schema.
+# - Verify mọi entry deadline ≤ added + 21 (catch misuse early).
+# - Output: PASS (0 entries past deadline) hoặc FAIL with summary.
+
+entries: []

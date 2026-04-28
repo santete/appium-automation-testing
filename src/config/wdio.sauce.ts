@@ -96,7 +96,11 @@ export const config: Options.Testrunner = {
   mochaOpts: {
     ui: 'bdd',
     timeout: 90_000,
-    require: [path.resolve(__dirname, '../../tests/_hooks/global.ts')],
+    require: [
+      // Quarantine FIRST — skip-before-lease tránh leak AccountPool slot.
+      path.resolve(__dirname, '../../tests/_hooks/quarantine.ts'),
+      path.resolve(__dirname, '../../tests/_hooks/global.ts'),
+    ],
   },
 
   reporters: [

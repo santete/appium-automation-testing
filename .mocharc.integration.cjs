@@ -3,7 +3,7 @@
  * KHÔNG load WDIO runtime (vẫn standalone Node).
  */
 module.exports = {
-  require: ['ts-node/register'],
+  require: ['ts-node/register', './tests/_hooks/quarantine.ts'],
   'node-option': ['no-experimental-strip-types'],
   spec: ['tests/integration/**/*.spec.ts'],
   extension: ['ts'],

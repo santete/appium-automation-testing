@@ -8,7 +8,7 @@
  * để ts-node/register handle full TS.
  */
 module.exports = {
-  require: ['ts-node/register'],
+  require: ['ts-node/register', './tests/_hooks/quarantine.ts'],
   'node-option': ['no-experimental-strip-types'],
   spec: ['tests/unit/**/*.spec.ts'],
   extension: ['ts'],

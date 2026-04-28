@@ -7,7 +7,7 @@
  * Timeout cao hơn unit/integration vì real RTT.
  */
 module.exports = {
-  require: ['ts-node/register'],
+  require: ['ts-node/register', './tests/_hooks/quarantine.ts'],
   'node-option': ['no-experimental-strip-types'],
   spec: ['tests/api/**/*.spec.ts'],
   extension: ['ts'],

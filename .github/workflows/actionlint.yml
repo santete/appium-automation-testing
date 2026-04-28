@@ -1,0 +1,42 @@
+# Actionlint — self-lint cho mọi file `.github/workflows/*.yml`.
+#
+# Plan ref: M4 Task 12.
+#
+# Mục tiêu: catch sớm typo, expression syntax sai, action ref không hợp lệ,
+# `runs-on` không tồn tại, v.v. — tránh push lên main rồi fail trong CI thật.
+#
+# Trigger:
+#   - PR + push chạm `.github/workflows/**`: chỉ lint khi workflow file thay đổi.
+#   - workflow_dispatch: manual rerun nếu cần.
+#
+# Engine: docker://rhysd/actionlint — official image, no setup, đủ nhanh
+# (~5s) để chạy gate-style.
+
+name: Actionlint
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+concurrency:
+  group: actionlint-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run actionlint
+        uses: docker://rhysd/actionlint:latest
+        with:
+          args: -color

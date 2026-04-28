@@ -8,7 +8,7 @@
 |-------|-------|
 | Milestone ID | M4 |
 | Spec section | `automation_testing_requirement.md` §7 + §11 Phase 4 |
-| Status | 🟡 In progress (v1.0 signed-off 2026-04-28; Task 1+2+3+4+5/19 done 2026-04-28) |
+| Status | 🟡 In progress (v1.0 signed-off 2026-04-28; Task 1+2+3+4+5+8+12/19 done 2026-04-28) |
 | Plan author | Claude + Phuc DN |
 | Plan version | v1.0 (signed-off 2026-04-28) |
 | Created | 2026-04-28 |
@@ -179,11 +179,11 @@ Test **non-device tier** (typecheck + lint + unit + integration + api) chạy t�
 | 5 | Regression workflow (cron 2AM + manual dispatch) — full + `ALLOW_NETWORK_INTEGRATION=1` | `.github/workflows/regression.yml` | 1h | 🟢 | — |
 | 6 | Allure publish reusable composite action — collect integration Allure, deploy GH Pages | `.github/actions/publish-allure/action.yml` | 1h | ⬜ | — |
 | 7 | Slack notification reusable composite (PR fail + nightly fail) | `.github/actions/notify-slack/action.yml` | 0.7h | ⬜ | — |
-| 8 | Quarantine YAML + Zod schema + custom Mocha hook | `docs/quarantine.yaml`, `tests/_hooks/quarantine.ts`, schema | 1h | ⬜ | test-implement |
+| 8 | Quarantine YAML + Zod schema + custom Mocha hook | `docs/quarantine.yaml`, `tests/_hooks/quarantine.ts`, schema | 1h | 🟢 | test-implement |
 | 9 | Quarantine deadline check script + CI step | `scripts/check-quarantine.cjs` | 0.5h | ⬜ | — |
 | 10 | Branch protection setup script | `scripts/setup-branch-protection.sh` (gh api PUT) | 0.5h | ⬜ | — |
 | 11 | Pipeline duration baseline tracker | `scripts/append-duration.cjs` + CI step | 0.7h | ⬜ | — |
-| 12 | actionlint workflow self-lint | `.github/workflows/actionlint.yml` | 0.5h | ⬜ | — |
+| 12 | actionlint workflow self-lint | `.github/workflows/actionlint.yml` | 0.5h | 🟢 | — |
 | 13 | Build minimal debuggable test APK source | `apps/test-debuggable-src/` Android Studio project (Kotlin, Gradle wrapper, 1 Activity + SharedPreferences) | 2h | ⬜ | test-data-setup |
 | 14 | Local APK build script | `scripts/build-test-apk.cjs` wrap `./gradlew assembleDebug` | 0.3h | ⬜ | test-data-setup |
 | 15 | **D4 carry-over**: real-device integration spec | `tests/integration/state-checker-mobile-real.spec.ts` (local-dev only, requires `RUN_REAL_DEVICE=1` gate) | 1h | ⬜ | assertion-contract |
@@ -282,6 +282,7 @@ Nếu phải hủy giữa chừng:
 | 2026-04-28 | **Task 1 🟢** — repo bootstrap. `git init -b main` + `.gitignore` revise (add `tmp/`, `.gradle/`, `**/build/`, `local.properties`, `.claude/settings.local.json`, `.claude/scheduled_tasks.lock`); 80 files staged (no `.env.local` / `node_modules/` / APK leak); single squashed commit `e0eb4b9` "M1+M2+M3 baseline"; `origin` = `https://github.com/santete/appium-automation-testing.git`; `git push -u origin main` SUCCESS. Repo public at https://github.com/santete/appium-automation-testing. Status → 🟡 In progress (Task 2-19 next). | Cần Phuc tạo Slack workspace + 2 channel + 2 webhook (block Task 7), enable GH Pages trong repo settings (block Task 6). |
 | 2026-04-28 | **Task 2 + 3 🟢** — README CI/Allure badge + `.github/PULL_REQUEST_TEMPLATE.md` (auto CI gate + smoke local honor-system + multi-layer assertion + quarantine + plan-before-execute checklists). Config-driven stubs `src/config/wdio.bs.ts` + `wdio.sauce.ts` ship với fail-fast guard (throw nếu BS_*/SAUCE_* env empty) — M5+ activation chỉ cần fill creds + uncomment `bstack:options`/`sauce:options` block. `.env.example` + `src/config/index.ts` Zod schema thêm SAUCE_* placeholders. Verify: `npm run typecheck` ✅, `npm run lint` ✅, `npm run test:unit` 54/54 ✅. | None — Task 4 (CI workflow) sẵn sàng. |
 | 2026-04-28 | **Task 4 + 5 🟢** — `.github/workflows/ci.yml`: PR + push to main trigger, single Linux job `verify` (typecheck + lint + unit + integration + api), `concurrency: cancel-in-progress` để hủy run cũ, env block set Zod-required vars (ANDROID_DEVICE_NAME=ci-stub, APP_PATH placeholder), `ALLOW_NETWORK_INTEGRATION=''` (gated tests skip), Allure artifact retention 7 ngày, timeout 10min. `.github/workflows/regression.yml`: cron `0 2 * * *` UTC + `workflow_dispatch`, `ALLOW_NETWORK_INTEGRATION='1'` (real httpbin), Allure artifact 30 ngày, timeout 30min. GH Pages deploy + Slack notify steps placeholder commented (uncomment khi Task 6 + 7 ship — chờ Phuc enable Pages + tạo webhooks). | Task 6 (Allure GH Pages composite action) cần Phuc enable Settings → Pages. Task 7 (Slack composite) cần Phuc tạo workspace + 2 webhook URLs. |
+| 2026-04-28 | **Task 8 + 12 🟢** — Quarantine mechanism (`src/utils/quarantine/{schema,loader}.ts` + `tests/_hooks/quarantine.ts` + `docs/quarantine.yaml` + 21 unit tests). Zod schema validate `{test_id, reason≥10, added, deadline, owner}` + 2 refinements (deadline ≥ added, deadline ≤ added + 21 ngày = 14 default + 7 grace). Loader: file missing/null YAML → empty (graceful), invalid → throw với issue path. Mocha root hook đọc YAML init, beforeEach match `fullTitle()` → future deadline `this.skip()`, past deadline throw error message với owner + reason + max-extend hint. Hook wired vào tất cả mocharc (unit/integration/api) + WDIO configs (local/staging/bs/sauce) — quarantine FIRST trong require list để skip-before-lease tránh leak AccountPool slot. Verify: `npm run typecheck` ✅, `npm run lint` ✅, `npm run test:unit` 75/75 ✅ (54 + 21 quarantine), `npm run test:integration` ✅, `npm run test:api` ✅. Task 12: `.github/workflows/actionlint.yml` self-lint dùng `docker://rhysd/actionlint`, trigger paths-filtered cho `.github/workflows/**`, 5min timeout, concurrency cancel-in-progress. | Task 9 (deadline check script CI gate) sẵn sàng next. Task 6+7 vẫn block chờ Phuc Pages + Slack. |
 
 ## 12. Plan revisions
 
