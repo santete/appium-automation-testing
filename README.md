@@ -7,7 +7,7 @@ Mobile automation testing system theo nguyên tắc **trustworthy-by-design** (m
 
 ## Trạng thái
 
-🟡 **M1 + M2 + M3 done; M4 in progress** (CI/CD integration — non-device tier + smoke local gate).
+🟡 **M1 + M2 + M3 done; M4 awaiting acceptance** (CI/CD integration — non-device tier + smoke local gate).
 Tiến độ chi tiết: [`ROADMAP.md`](ROADMAP.md).
 
 ## Quick start
