@@ -1,7 +1,7 @@
 # M5 — Observability & Intelligence
 
 > Implementation plan cho milestone M5. Workflow đầy đủ xem `docs/plans/README.md`.
-> ⚠ **Status: 📝 Planning (v0.1 draft)** — KHÔNG bắt đầu execute task nào trước khi Phuc DN sign-off + revise tới v1.0 + chuyển 🔵.
+> **Status: 🔵 Plan ready (v1.0 signed-off 2026-04-28)** — Decisions 1-10 sign-off; Phuc fill `.env` LLM config trước khi start Task 1+2+4.
 
 ## Metadata
 
@@ -9,11 +9,11 @@
 |-------|-------|
 | Milestone ID | M5 |
 | Spec section | `automation_testing_requirement.md` §11 Phase 5 (Week 13-16), §6 + §7.4-7.8 |
-| Status | 📝 Planning |
+| Status | 🔵 Plan ready |
 | Plan author | Claude Opus 4.7 (with Phuc DN) |
-| Plan version | v0.1 (draft) |
+| Plan version | v1.0 (signed-off) |
 | Created | 2026-04-28 |
-| Sign-off date | pending |
+| Sign-off date | 2026-04-28 |
 | Sign-off by | Phuc DN |
 | Target start | 2026-04-29 (post sign-off) |
 | Target end | TBD — ước ~3-4 tuần thực thi (xem section 5 task estimate) |
@@ -70,9 +70,9 @@ Auto-classify failure (decision tree §6.1) + dashboard trends + knowledge base 
 
 ---
 
-## 4. Technical decisions (DRAFT — sign-off cần)
+## 4. Technical decisions (SIGN-OFF 2026-04-28)
 
-Trả lời TẤT CẢ "Plan checklist" trong ROADMAP.md M5 + thêm các decision mới phát sinh từ M4 carry-over.
+Trả lời TẤT CẢ "Plan checklist" trong ROADMAP.md M5 + thêm các decision mới phát sinh từ M4 carry-over. Phuc DN approve all proposed defaults; Decision 2 revise sang config-driven; Decision 10 added.
 
 ### Decision 1: Dashboard tool
 
@@ -82,11 +82,10 @@ Trả lời TẤT CẢ "Plan checklist" trong ROADMAP.md M5 + thêm các decisio
   - **B — ReportPortal (open-source):** thiết kế cho test result; Allure-like nhưng có analytics + history. Cons: heavyweight, cần Docker stack.
   - **C — Allure TestOps SaaS:** zero-maintain; license phí (~$20/user/month); chính chủ Allure.
   - **D — Custom dashboard (React/Next + sqlite/csv):** hoàn toàn tailored, chi phí dev cao; cons: re-invent the wheel.
-- **Decision (proposed):** **A — Grafana + InfluxDB self-host** (Docker compose trên dev workstation hoặc free Vercel/Render serverless DB).
+- **Decision (SIGN-OFF):** **A — Grafana + InfluxDB self-host** (Docker compose trên dev workstation hoặc free Vercel/Render serverless DB).
 - **Rationale:** zero recurring cost, control toàn bộ schema, dễ migrate khi scale; M3 đã có pattern emit JSON từ test → InfluxDB ingest đơn giản. Alternative B (ReportPortal) overkill cho 1-eng team.
-- **Phuc input cần:** OK Grafana hay prefer dashboard tool khác?
 
-### Decision 2: Self-healing LLM API
+### Decision 2: Self-healing LLM API — config-driven adapter
 
 - **Question:** Claude / GPT / local model? Cost per suggestion?
 - **Options considered:**
@@ -94,9 +93,25 @@ Trả lời TẤT CẢ "Plan checklist" trong ROADMAP.md M5 + thêm các decisio
   - **B — GPT-4o-mini:** rẻ hơn (~$0.15/1M in + $0.6/1M out). Quality thấp hơn cho structured suggestion.
   - **C — Local Llama 3.1 8B qua Ollama:** zero cost runtime, cần GPU dev workstation; quality OK cho XPath suggest.
   - **D — Heuristic only (no LLM):** match similar accessibility-id by Levenshtein, propose XPath fallback từ position. Quality low.
-- **Decision (proposed):** **A — Claude Sonnet API** với cost cap $20/month (alert nếu vượt). Phuc đã có Claude account, key reuse.
-- **Rationale:** quality matters cho human-review loop (low-quality suggest = noise = reviewer ignore). Cost trivial cho solo dev.
-- **Phuc input cần:** Claude API key có sẵn? Cost cap acceptable?
+- **Decision (SIGN-OFF):** **Provider-agnostic adapter, config-driven qua `.env`** — không hardcode provider/model trong code. Phuc fill `.env` khi sẵn sàng start Task 1+2+4.
+- **Env schema bắt buộc:**
+  ```bash
+  # .env (gitignored) — Phuc fill, KHÔNG commit
+  LLM_PROVIDER=anthropic|openai|ollama|none   # 'none' = disable LLM, fallback rule-only (Decision 5)
+  LLM_API_KEY=sk-...                          # required nếu provider != 'none' / 'ollama'
+  LLM_MODEL=claude-sonnet-4-6                 # provider-specific model id
+  LLM_BASE_URL=                               # optional override (Ollama local: http://localhost:11434)
+  LLM_BUDGET_MONTHLY_USD=20                   # cap; exceed → fallback rule-only + alert
+  ```
+- **`.env.example` sẽ thêm các key trên với placeholder + comment.**
+- **Adapter contract:** `src/utils/llm/types.ts` định nghĩa `LlmAdapter.suggest(prompt, schema): Promise<{output, tokensIn, tokensOut, costUsd}>`. Implementation files: `anthropicAdapter.ts`, `openaiAdapter.ts`, `ollamaAdapter.ts`, `nullAdapter.ts` (no-op khi provider=none). Factory chọn adapter theo `LLM_PROVIDER`.
+- **Rationale:** Phuc chưa chốt model + key → blocked nếu hardcode. Adapter pattern khớp M2 DI checker pattern (Decision M2 #20). Future-proof khi đổi vendor / thử local model.
+
+### Decision 2b: LLM budget gate
+
+- **Question:** Cost cap exceed thì làm gì?
+- **Decision (SIGN-OFF):** Track monthly spend trong file `tmp/llm-spend.json` (cross-process safe qua `proper-lockfile` reuse từ M3). Mỗi suggestion: increment spend, check vs `LLM_BUDGET_MONTHLY_USD`. Vượt budget → adapter throw `BudgetExceededError` → caller catch → fall back `nullAdapter` cho phần còn lại của tháng + log warning vào KB. Reset monthly tự động.
+- **Rationale:** zero surprise cost; rule-only fallback (Decision 5) vẫn chạy khi LLM budget burn.
 
 ### Decision 3: KB storage
 
@@ -105,7 +120,7 @@ Trả lời TẤT CẢ "Plan checklist" trong ROADMAP.md M5 + thêm các decisio
   - **A — Single `docs/flaky_kb.md` markdown:** human-readable, git-tracked, low-tech. Cons: search bằng grep, không scale.
   - **B — SQLite + FTS5 search:** still git-tracked (file binary OK), full-text search built-in. Cons: structured query needed.
   - **C — Vector store (Chroma/Qdrant local):** semantic search ("test fail liên quan login race") → trả entry liên quan dù pattern khác text. Cons: maintain stack + embed cost.
-- **Decision (proposed):** **A markdown** for M5 entry; auto-promote sang B SQLite khi KB > 50 entry (deferred).
+- **Decision (SIGN-OFF):** **A markdown** for M5 entry; auto-promote sang B SQLite khi KB > 50 entry (deferred).
 - **Rationale:** start simple; markdown đủ cho 1-eng + search bằng grep; promote khi thấy pain.
 
 ### Decision 4: Auto-quarantine threshold
@@ -115,7 +130,7 @@ Trả lời TẤT CẢ "Plan checklist" trong ROADMAP.md M5 + thêm các decisio
   - **A — < 90% trên 30 run gần nhất:** balanced (cần 4 fail trong 30 run để trigger).
   - **B — < 80% trên 20 run gần nhất:** aggressive, false-positive (legit bug) bị quarantine.
   - **C — Combined:** < 90% / 30 run **AND** ≥ 1 fail trong 5 run gần nhất (recent signal).
-- **Decision (proposed):** **C — combined**, với manual override (engineer có thể `quarantine: false` flag để force keep).
+- **Decision (SIGN-OFF):** **C — combined**, với manual override (engineer có thể `quarantine: false` flag để force keep).
 - **Rationale:** vừa cover pattern flaky kéo dài vừa không quarantine test mà fail batch gần đây do legit bug.
 
 ### Decision 5: Confidence score 0.9 — heuristic vs ML
@@ -125,7 +140,7 @@ Trả lời TẤT CẢ "Plan checklist" trong ROADMAP.md M5 + thêm các decisio
   - **A — Rule-based heuristic:** mỗi rule (regex match logcat / status code / element-not-found pattern) gán confidence; nhiều rule match → confidence cao.
   - **B — LLM self-report:** Claude trả `{classification, confidence: 0.95}` qua structured output.
   - **C — Combined:** rule-based first; ambiguous case (multiple match same weight) escalate LLM.
-- **Decision (proposed):** **C combined** — fast path (rule, 80% case) + slow path (LLM, 20% ambiguous).
+- **Decision (SIGN-OFF):** **C combined** — fast path (rule, 80% case) + slow path (LLM, 20% ambiguous). LLM call gated qua `LlmAdapter` (Decision 2) — fallback rule-only khi provider=none hoặc budget exceeded.
 - **Rationale:** cost optimal, latency optimal, quality acceptable.
 
 ### Decision 6: Notification channel
@@ -136,9 +151,8 @@ Trả lời TẤT CẢ "Plan checklist" trong ROADMAP.md M5 + thêm các decisio
   - **B — Discord:** free, 5-min webhook setup; Phuc có Discord personal.
   - **C — Email (SMTP):** free, audit trail; cần SMTP relay (Gmail App Password).
   - **D — GH Issue auto-create:** zero infra; Phuc đã ở GH; auto-close khi green.
-- **Decision (proposed):** **D GH Issue** primary + **C email** fallback cho off-hours alert.
+- **Decision (SIGN-OFF):** **D GH Issue** primary + **C email** fallback cho off-hours alert.
 - **Rationale:** GH-native, zero new tool; email là backup cho urgent (failure trên main mà 4 giờ không vào GH).
-- **Phuc input cần:** prefer Discord không?
 
 ### Decision 7: Report channel — GH Pages re-attempt vs Vercel
 
@@ -147,31 +161,47 @@ Trả lời TẤT CẢ "Plan checklist" trong ROADMAP.md M5 + thêm các decisio
   - **A — GH Pages re-attempt:** policy có thể đã unlock; check `gh api repos/santete/appium-automation-testing/pages` xem org enable.
   - **B — Vercel mirror:** workflow rsync allure-results sang public repo `santete/automation-allure` → Vercel build static; URL `<project>.vercel.app/<run-id>/`.
   - **C — Cloudflare Pages:** free tier 500 builds/month; tương tự Vercel.
-- **Decision (proposed):** A first (re-check); fallback B Vercel.
+- **Decision (SIGN-OFF):** A first (re-check); fallback B Vercel.
 - **Rationale:** GH Pages zero-config; Vercel cần extra repo + token.
 
 ### Decision 8: M4 acceptance D5+D6 status
 
 - **Question:** D5+D6 vẫn open. M5 có wait không, hay parallel?
-- **Decision (proposed):** **Parallel** — M5 task 1-3 (classifier + KB + dashboard) độc lập với D5+D6 verify; Phuc có thể clear D5+D6 song song.
+- **Decision (SIGN-OFF):** **Parallel** — M5 task 1-3 (classifier + KB + dashboard) độc lập với D5+D6 verify; D5+D6 dồn vào batch closure ở M6 (Decision 10).
 - **Rationale:** unblock; D5+D6 chỉ là verify steps, không gate code change M5.
 
 ### Decision 9: Plan-before-execute scope cho LLM/AI feature
 
 - **Question:** Self-healing + classifier có cần sub-plan riêng (LLM prompt design, API budget gate) không?
-- **Decision (proposed):** **Yes** — Task 4 (self-heal) + Task 1 (classifier) viết spike doc trong `docs/spikes/` trước khi implement; spike pass criteria mới move to implement.
+- **Decision (SIGN-OFF):** **Yes** — Task 4 (self-heal) + Task 1 (classifier) viết spike doc trong `docs/spikes/` trước khi implement; spike pass criteria mới move to implement.
 - **Rationale:** LLM behavior khó predict; spike để de-risk.
+
+### Decision 10: Debt consolidation — repay batch ở M6 closure (NEW)
+
+- **Question:** D5 + D6 (M4 carry-over) + bất kỳ debt nào phát sinh trong M5 — repay khi nào?
+- **Options considered:**
+  - **A — Repay từng debt ở milestone tiếp theo:** pattern truyền thống M1→M2→M3 đang dùng (D1 trả M2, D2+D3+D4 trả M3).
+  - **B — Consolidate batch ở M6 closure:** dồn tất cả debt M4+M5 vào 1 sprint cuối, Phuc verify + repay 1 lần.
+- **Decision (SIGN-OFF):** **B — consolidate batch ở M6 closure.** Phuc DN explicit: "các debt cứ dồn về phase cuối, tao sẽ giải quyết luôn 1 lần".
+- **Áp dụng:**
+  - **D5** (M4 acceptance GH UI verify) — Repay milestone đổi từ "M4 closure" → **M6 closure**.
+  - **D6** (M4 D4 real-device verify) — Repay milestone đổi từ "M4 closure" → **M6 closure**.
+  - **Bất kỳ debt mới nào trong M5** — log với "Repay in: M6 closure".
+- **Tradeoff explicit:** M4 và M5 có thể mark 🟢 với debt 🟡 open (verify-only, không gate functionality). M6 closure phải dành sprint cuối purge tất cả debt — fail nếu skip.
+- **Rationale:** Phuc workflow preference (1 batch verify vs interrupt giữa milestone). Áp dụng cho mọi debt verify-only (không phải debt code-incomplete).
+- **Constraint:** debt code-incomplete (vd. mock chưa replace bằng real impl) **KHÔNG** consolidate — vẫn repay milestone tiếp theo. Decision 10 chỉ áp cho **verify-only debt** (test thủ công + UI click).
 
 ---
 
-## 5. Task breakdown (DRAFT — finalize sau sign-off)
+## 5. Task breakdown (signed-off)
 
 | # | Task | Deliverable file | Estimate | Status | Skill |
 |---|------|------------------|----------|--------|-------|
+| 0 | LLM adapter scaffold + `.env` schema (block Task 1+2+4 cho đến khi Phuc fill key) | `src/utils/llm/{types,factory,anthropicAdapter,openaiAdapter,ollamaAdapter,nullAdapter}.ts` + `.env.example` keys + budget tracker `tmp/llm-spend.json` reuse `proper-lockfile` | 4h | ⬜ | — |
 | 1 | Decision tree classifier (rule-based core) | `src/utils/classifier/{rules,engine,types}.ts` + 30 unit tests | 8h | ⬜ | `failure-rca` |
-| 2 | LLM augmentation cho ambiguous case | `src/utils/classifier/llmAdapter.ts` + Claude API integration + budget cap script | 6h | ⬜ | `failure-rca` |
+| 2 | LLM augmentation cho ambiguous case (qua adapter Task 0) | `src/utils/classifier/llmEscalator.ts` + budget gate integration | 6h | ⬜ | `failure-rca` |
 | 3 | Flaky detection + auto-quarantine PR generator | `src/utils/flaky/detector.ts` + `scripts/auto-quarantine-pr.cjs` (gh api PR open) | 5h | ⬜ | `test-validate` |
-| 4 | Self-healing locator spike + suggester | `docs/spikes/self-heal-locator.md` + `src/utils/selfHeal/suggester.ts` + GH Action workflow | 10h | ⬜ | `test-implement` |
+| 4 | Self-healing locator spike + suggester (qua adapter Task 0) | `docs/spikes/self-heal-locator.md` + `src/utils/selfHeal/suggester.ts` + GH Action workflow | 10h | ⬜ | `test-implement` |
 | 5 | Dashboard infra (Grafana + InfluxDB Docker compose) | `infra/observability/{docker-compose.yaml,grafana-dashboards/*.json,influxdb-init.sql}` | 6h | ⬜ | — |
 | 6 | Test run metric emit | `src/utils/metrics/influxEmitter.ts` + WDIO afterTest hook integration | 3h | ⬜ | — |
 | 7 | KB auto-update từ classifier | `docs/flaky_kb.md` schema + `src/utils/kb/appender.ts` | 3h | ⬜ | `failure-rca` |
@@ -181,7 +211,9 @@ Trả lời TẤT CẢ "Plan checklist" trong ROADMAP.md M5 + thêm các decisio
 | 11 | RCA archive template + skill update | `docs/rca/_template.md` + `.claude/skills/failure-rca/SKILL.md` revise | 2h | ⬜ | `failure-rca` |
 | 12 | Acceptance test runbook + 20-failure replay corpus | `docs/runbook-M5-acceptance.md` + `tests/fixtures/m5-classifier-corpus/` | 5h | ⬜ | — |
 
-**Total estimate:** ~57h ≈ 7-8 work-day. Calendar 3-4 tuần (do solo dev + cần Phuc verify).
+**Total estimate:** ~61h ≈ 8 work-day. Calendar 3-4 tuần (do solo dev + cần Phuc verify).
+
+**Execution order:** Task 0 ship trước (zero-LLM scaffold); Task 1 + 3 + 5 + 6 + 7 + 8 độc lập với LLM key (chạy được ngay). Task 2 + 4 chờ Phuc fill `.env` LLM_*.
 
 ## 6. Dependencies
 
@@ -197,9 +229,8 @@ Trả lời TẤT CẢ "Plan checklist" trong ROADMAP.md M5 + thêm các decisio
 
 ### External dependencies
 
-- Claude API key (Phuc đã có).
+- LLM provider + API key (config qua `.env` — Phuc fill khi sẵn sàng start Task 1+2+4).
 - Vercel account (nếu Decision 7 fallback B).
-- Discord workspace (nếu Decision 6 chuyển B).
 - Docker Desktop trên dev workstation (Decision 1 self-host).
 
 ## 7. Risks & mitigations
@@ -235,26 +266,27 @@ Nếu phải hủy giữa chừng:
 
 Trước khi chuyển status → 🔵 Plan ready:
 
-- [ ] Goal + Done criteria khớp ROADMAP.md
-- [ ] Scope rõ ràng (in/out)
-- [ ] Tất cả 5 "Plan checklist" trong ROADMAP.md M5 đã trả lời (Decision 1-5)
-- [ ] M4 carry-over 3 item (Allure host, Slack/notify, pipeline duration) đã fold vào M5 plan (Task 8+9+10)
-- [ ] Task breakdown có owner + estimate
-- [ ] Dependencies xác định (D5+D6 không block plan; block execute Task 1 chờ run history)
-- [ ] Risks đã thảo luận
-- [ ] Phuc DN approve Decision 1-9 (đặc biệt Claude API budget + Discord vs GH Issue notify)
+- [x] Goal + Done criteria khớp ROADMAP.md
+- [x] Scope rõ ràng (in/out)
+- [x] Tất cả 5 "Plan checklist" trong ROADMAP.md M5 đã trả lời (Decision 1-5)
+- [x] M4 carry-over 3 item (Allure host, Slack/notify, pipeline duration) đã fold vào M5 plan (Task 8+9+10)
+- [x] Task breakdown có owner + estimate
+- [x] Dependencies xác định (D5+D6 dồn M6 closure per Decision 10; LLM key block Task 2+4 chờ `.env`)
+- [x] Risks đã thảo luận
+- [x] Phuc DN approve Decision 1-10 (Decision 2 revise sang config-driven `.env`; Decision 10 added — debt consolidation M6 closure)
 
 ## 11. Status updates (weekly)
 
 | Date | Update | Blockers |
 |------|--------|----------|
 | 2026-04-28 | Plan v0.1 draft published autonomous batch (kết liền M4 framework completeness Đợt 1+2). 9 decisions proposed; chờ Phuc DN review + sign-off → revise v1.0 → 🔵 Plan ready. | M4 🟡 chưa close (D5+D6 manual verify); không block plan draft, block execute Task 1. |
+| 2026-04-28 | Phuc DN sign-off — approve all 9 default proposals; revise Decision 2 sang config-driven `.env` (provider-agnostic LLM adapter, Phuc fill key sau); thêm Decision 10 — debt consolidation M6 closure (D5+D6 dời từ M4 closure → M6 closure). Plan v0.1 → v1.0. **Status → 🔵 Plan ready.** Task 0 (LLM scaffold) thêm vào breakdown để unblock Task 1+3+5-8 chạy ngay; Task 2+4 chờ `.env` fill. | None — chờ Phuc start. |
 
 ## 12. Plan revisions
 
 | Date | Change | Reason | Re-sign-off needed? |
 |------|--------|--------|---------------------|
-| — | (chưa có revision — plan v0.1 chưa sign-off) | | |
+| 2026-04-28 | v0.1 → v1.0: Decision 2 revise sang config-driven `.env`; Decision 10 added (debt consolidation M6); Task 0 (LLM scaffold) added; Task 2+4 split execution gating | Phuc DN sign-off + workflow preference (debt batch repay + LLM model TBD) | No — initial sign-off |
 
 ## 13. Closure
 

@@ -7,7 +7,7 @@ Mobile automation testing system theo nguyên tắc **trustworthy-by-design** (m
 
 ## Trạng thái
 
-🟡 **M1 + M2 + M3 done; M4 in progress** (CI/CD integration — non-device tier + smoke local gate).
+🟢 **M1 + M2 + M3 + M4 done; M5 plan ready 🔵** (Observability & Intelligence — chờ Phuc fill `.env` LLM_* để start Task 2+4).
 Tiến độ chi tiết: [`ROADMAP.md`](ROADMAP.md).
 
 ## Quick start

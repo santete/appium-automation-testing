@@ -26,8 +26,8 @@
 | M1 | Foundation | 🟢 | [M1-foundation.md](docs/plans/M1-foundation.md) | 2026-04-27 → 2026-05-18 | 2026-04-27 → 2026-04-27 | — |
 | M2 | Validation Framework | 🟢 | [M2-validation-framework.md](docs/plans/M2-validation-framework.md) | 2026-04-28 → 2026-05-19 | 2026-04-27 → 2026-04-27 | — |
 | M3 | Test Data & Environment | 🟢 | [M3-test-data-env.md](docs/plans/M3-test-data-env.md) | 2026-04-28 → 2026-05-12 | 2026-04-27 → 2026-04-28 | — |
-| M4 | CI/CD Integration | 🟡 | [M4-cicd.md](docs/plans/M4-cicd.md) | 2026-04-29 → 2026-05-20 (3 tuần) | 2026-04-28 → — | — |
-| M5 | Observability & Intelligence | 📝 | [M5-observability.md](docs/plans/M5-observability.md) | TBD (post sign-off) | — | M4 🟡 (D5+D6); plan draft sign-off |
+| M4 | CI/CD Integration | 🟢 | [M4-cicd.md](docs/plans/M4-cicd.md) | 2026-04-29 → 2026-05-20 (3 tuần) | 2026-04-28 → 2026-04-28 | D5+D6 verify-only dời M6 closure (Decision 10) |
+| M5 | Observability & Intelligence | 🔵 | [M5-observability.md](docs/plans/M5-observability.md) | 2026-04-29 → ~3-4 tuần | — | Phuc fill `.env` LLM_* trước Task 2+4 |
 | M6 | Optimization & Scale | ⬜ | — | TBD | — | — |
 
 **Dependency graph:**
@@ -182,7 +182,7 @@ Test isolated hoàn toàn, không flaky vì data hoặc env.
 ## M4 — CI/CD Integration
 
 **Map vào:** spec §11 Phase 4 (Week 10-12), §7
-**Status:** 🟡 Awaiting acceptance (v1.1 revised 2026-04-28; Task 1-5+8-10+12-17/19 done 2026-04-28; Task 18 partial — 5/7 sub-points auto-PASS local, 1+2+3+4 cần Phuc verify GH UI, 6 cần Phuc plug Android device; Task 19 closure pending; Task 6+7+11 deferred M5)
+**Status:** 🟢 Done (2026-04-28 — non-device tier auto + framework completeness shipped; verify-only debt D5 (GH UI) + D6 (real-device) dời M6 closure per M5 Decision 10 debt consolidation policy)
 **Plan file:** [docs/plans/M4-cicd.md](docs/plans/M4-cicd.md)
 **Carry-over from M3:** D4 real-device verify (local-dev path: build minimal debuggable Kotlin test APK + run StateChecker `mobile:executeScript` backend trên dev Android device — device farm wire-up defer M5+)
 **Depends on:** M3 done ✅
@@ -241,9 +241,9 @@ Non-device tier (typecheck + lint + unit + integration + api) chạy tự độn
 ## M5 — Observability & Intelligence
 
 **Map vào:** spec §11 Phase 5 (Week 13-16), §6 + §7.4-7.8
-**Status:** 📝 Planning (v0.1 draft 2026-04-28; chờ Phuc DN sign-off → revise v1.0 → 🔵 Plan ready)
+**Status:** 🔵 Plan ready (v1.0 sign-off 2026-04-28 — Decisions 1-10 chốt; Phuc fill `.env` LLM_* trước Task 2+4)
 **Plan file:** [docs/plans/M5-observability.md](docs/plans/M5-observability.md)
-**Depends on:** M4 done (cần dữ liệu run từ CI để build dashboard) — currently 🟡 awaiting D5+D6
+**Depends on:** M4 done (cần dữ liệu run từ CI) — D5+D6 dời M6 closure per Decision 10 (debt consolidation)
 **Carry-over từ M4:** Task 6 (Allure host), Task 7 (Slack/notify), Task 11 (pipeline duration tracker)
 
 ### Goal
@@ -273,6 +273,7 @@ Auto-classify failure + dashboard trends + knowledge base + self-healing suggest
 | Date | Update |
 |------|--------|
 | 2026-04-28 | Plan v0.1 draft published — 9 decisions proposed (dashboard tool, LLM API, KB storage, flaky threshold, confidence scoring, notify channel, report channel, M4 D5+D6 parallel, spike-first). 12 task breakdown ~57h estimate. M4 carry-over (Allure host, Slack/notify, pipeline duration) folded vào Task 8+9+10. **Status → 📝 Planning. Chờ Phuc DN review + sign-off.** Acceptance test 7 sub-points proposed. |
+| 2026-04-28 | Phuc DN sign-off all 9 defaults; Decision 2 revise sang **config-driven `.env`** (provider-agnostic LLM adapter — `LLM_PROVIDER`/`LLM_API_KEY`/`LLM_MODEL`/`LLM_BUDGET_MONTHLY_USD`); Decision 10 added — **debt consolidation M6 closure** (D5+D6 dời M4 closure → M6 closure batch repay). Task 0 (LLM scaffold + adapter pattern) thêm vào breakdown để Task 1+3+5-8 chạy được ngay (Task 2+4 chờ `.env` fill). Total estimate ~57h → ~61h. **Plan v0.1 → v1.0. Status → 🔵 Plan ready.** |
 
 ---
 
@@ -326,8 +327,8 @@ _(điền khi triển khai)_
 | D2 | Hardcoded credentials trong `.env.local` cho smoke test | §4.5 "NEVER hardcode credentials", §4.2 isolation | M1 | M3 | 🟢 Repaid 2026-04-28 | `.env.local` không còn `TEST_USERNAME`/`TEST_PASSWORD` (deprecated keys giữ trong `src/config/index.ts` schema cho transition only); smoke spec đọc `globalThis.testAccount` set bởi global hook (`tests/_hooks/global.ts`) lease account từ AccountPool ở `beforeEach`. Grep clean. |
 | D3 | `AC_LOGIN_001.yaml` không có `api_layer` block (Sauce Demo offline) | §5.2 multi-layer, §1.3 "Validation = Multi-layer" | M2 | M3 | 🟢 Repaid 2026-04-28 (path B) | `src/contracts/AC_API_DEMO_001.yaml` chạy real public HTTP (httpbin.org `/json`) end-to-end qua `tests/api/api-demo.spec.ts` — verdict PASS với 3 results. Force-fail schema mismatch (Zod `author: number`) trong `tests/integration/api-contract-real.spec.ts` → verdict FAIL `layer: API`, routeTo: 1, assignTo: dev_team. AC_LOGIN_001 vẫn không có api_layer (Sauce Demo offline) — debt đóng theo "API capability proven", không phải "login flow có API". |
 | D4 | `StateChecker.adb_shell` backend chỉ work với debuggable APK; release APK sẽ block run-as | §5.2 state_layer, §3 step 4 production-readiness | M2 | M3 (real app expose debug API) hoặc M4 (BrowserStack run-as flag) | 🟡 Partial repay 2026-04-28 — code-level done, real-device verify carry-over M4 | `src/utils/assertion/checkers/mobileExecuteScriptStateCheckerDeps.ts` triển khai backend qua Appium `mobile: shell`; 6 unit tests cover (lease/{stdout} shape/cat skip/null/NotImplementedError/package injection guard). XML parser chia sẻ với adb backend qua `sharedPrefsParser.ts`. ⚠ **Real-device verify chưa hoàn thành**: Sauce Demo prod APK release-signed (`aapt dump badging` không có `application-debuggable` line) → carry-over M4 build minimal debuggable test APK. |
-| D5 | M4 acceptance sub-points 1+2+3+4 (branch protection + PR CI gate + force-fail block + nightly dispatch) chưa verify trên GitHub UI | M4 plan §2 v1.1 done criteria sub-points 1-4 | M4 | M4 closure (Phuc verify khi rảnh) | 🟡 Open 2026-04-28 | (a) `gh api .../branches/main/protection` returns config with `required_status_checks.contexts: ["verify"]` + `allow_force_pushes: false`; (b) test PR `chore/m4-acceptance-test` push commit → workflow CI green; (c) force-fail commit → workflow red + Merge button disabled với "Required statuses must pass"; (d) `gh workflow run regression.yml` (hoặc UI dispatch) → run green + Allure artifact downloadable. Branch + commits đã push sẵn 2026-04-28 (`63efe39`/`45f64ef`/`4b0133f`); chỉ cần Phuc click UI 4 step để screenshot + đóng PR. |
-| D6 | M4 acceptance sub-point 6 (D4 real-device verify trên dev Android device) chưa chạy thực | M4 plan §2 v1.1 done criteria sub-point 6 | M4 | M4 closure (khi Phuc plug Android device) | 🟡 Open 2026-04-28 | Trên dev workstation: `adb devices` → 1 device authorized; `npm run build:test-apk` → `apps/state-test-debug.apk` build success; terminal khác `appium --allow-insecure adb_shell --base-path /`; `RUN_REAL_DEVICE=1 ANDROID_DEVICE_NAME=<id> npm run test:integration` → spec `Integration (REAL DEVICE): mobile:executeScript state lookup` 2 cases PASS (default prefs + absent key negative). Tất cả code đã ship 2026-04-28 (`apps/test-debuggable-src/` + `scripts/build-test-apk.cjs` + `tests/integration/state-checker-mobile-real.spec.ts`). |
+| D5 | M4 acceptance sub-points 1+2+3+4 (branch protection + PR CI gate + force-fail block + nightly dispatch) chưa verify trên GitHub UI | M4 plan §2 v1.1 done criteria sub-points 1-4 | M4 | **M6 closure** (debt consolidation per Decision 10 M5; revise từ "M4 closure") | 🟡 Open 2026-04-28 | (a) `gh api .../branches/main/protection` returns config với `required_status_checks.contexts: ["verify"]` + `allow_force_pushes: false`; (b) test PR `chore/m4-acceptance-test` push commit → workflow CI green; (c) force-fail commit → workflow red + Merge button disabled với "Required statuses must pass"; (d) `gh workflow run regression.yml` (hoặc UI dispatch) → run green + Allure artifact downloadable. Branch + commits đã push sẵn 2026-04-28 (`63efe39`/`45f64ef`/`4b0133f`); chỉ cần Phuc click UI 4 step để screenshot + đóng PR. |
+| D6 | M4 acceptance sub-point 6 (D4 real-device verify trên dev Android device) chưa chạy thực | M4 plan §2 v1.1 done criteria sub-point 6 | M4 | **M6 closure** (debt consolidation per Decision 10 M5; revise từ "M4 closure") | 🟡 Open 2026-04-28 | Trên dev workstation: `adb devices` → 1 device authorized; `npm run build:test-apk` → `apps/state-test-debug.apk` build success; terminal khác `appium --allow-insecure adb_shell --base-path /`; `RUN_REAL_DEVICE=1 ANDROID_DEVICE_NAME=<id> npm run test:integration` → spec `Integration (REAL DEVICE): mobile:executeScript state lookup` 2 cases PASS (default prefs + absent key negative). Tất cả code đã ship 2026-04-28 (`apps/test-debuggable-src/` + `scripts/build-test-apk.cjs` + `tests/integration/state-checker-mobile-real.spec.ts`). |
 
 ## Decisions log
 
@@ -383,6 +384,16 @@ Ghi lại các quyết định technical quan trọng và lý do (giúp future C
 | 2026-04-28 | **Bump Node 20 LTS → 22 LTS** (CI workflows + `package.json` engines) — supersedes M1 decision row 4 | CI run đầu tiên fail vì `mocha --no-experimental-strip-types` không tồn tại trên Node 20 (M2 decision row 22 thêm flag để fix Node 22 default TS-strip; flag chỉ valid trên Node 22+). Dev machine đã Node 22.18.0 → align CI khớp. Node 22 = Active LTS từ 10/2024, không downgrade-only. | M4 (CI fix); M5+ giữ Node 22 |
 | 2026-04-28 | **M4 plan revision v1.0 → v1.1** — defer Task 6 (Allure host), Task 7 (Slack notify), Task 11 (pipeline duration) sang M5; supersedes Decision 8 (GH Pages) + Decision 9 (Slack 2 channels) | (a) GH Pages bị Enterprise org block khi Phuc check; Vercel alternative không justify cho solo dev. (b) "kênh nhận thông tin cảnh báo này nọ setup sau, dashboard chưa share link được thì xem local, tập trung xử lý cho hoàn thiện sản phẩm có thể chạy solo ở local". (c) Pipeline duration tracker chỉ M5 dashboard mới consume. M4 final scope = framework chạy được solo local (CI auto + smoke gate manual + D4 verified). | M4 (drop), M5 (revisit khi có team / dashboard tool) |
 | 2026-04-28 | **M4 branch protection drop "1 review required"** — supersedes Decision 7 v1.0 | Solo dev không có reviewer khác → "1 review required" sẽ block forever khi anh tự PR. Giữ required check `ci / verify` + force-push blocked. M5+ add review requirement khi có team. | M4 (revised), M5 |
+| 2026-04-28 | **M5 dashboard tool = Grafana + InfluxDB self-host (Docker compose)** | Zero recurring cost, control schema, dễ migrate khi scale; ReportPortal overkill cho 1-eng; Allure TestOps SaaS không justify cost. | M5, M6 |
+| 2026-04-28 | **M5 LLM = provider-agnostic adapter, config-driven qua `.env`** (`LLM_PROVIDER`/`LLM_API_KEY`/`LLM_MODEL`/`LLM_BASE_URL`/`LLM_BUDGET_MONTHLY_USD`) | Phuc chưa chốt model + key sẵn → blocked nếu hardcode. Adapter pattern khớp M2 DI checker pattern. Future-proof khi đổi vendor / thử local Llama. | M5 |
+| 2026-04-28 | **M5 LLM budget gate** = monthly spend tracker `tmp/llm-spend.json` (`proper-lockfile` reuse), exceed → fallback `nullAdapter` rule-only + log KB warning | Zero surprise cost; rule-only fallback (Decision 5 combined) vẫn chạy khi budget burn. Reset tự động đầu tháng. | M5 |
+| 2026-04-28 | **M5 KB storage = single markdown `docs/flaky_kb.md`**, auto-promote SQLite FTS5 khi >50 entry | Start simple cho 1-eng; markdown human-readable + git-tracked + grep search đủ; promote khi pain point lộ. | M5, M6 |
+| 2026-04-28 | **M5 flaky auto-quarantine threshold = combined: <90% / 30 run gần nhất AND ≥1 fail / 5 run gần nhất** | Vừa cover pattern flaky kéo dài vừa không quarantine test fail batch gần đây do legit bug. Manual override `quarantine: false` flag để force keep. | M5 |
+| 2026-04-28 | **M5 confidence score = combined rule-based fast path (80% case) + LLM slow path (20% ambiguous)** | Cost optimal + latency optimal + quality acceptable. LLM call gated qua adapter; `LLM_PROVIDER=none` hoặc budget exceed → fallback rule-only. | M5 |
+| 2026-04-28 | **M5 notification = GH Issue auto-create primary + email SMTP fallback** (drop Slack/Discord cho M5) | GH-native zero-tool; email backup cho urgent failure khi không vào GH. Slack/Discord defer khi có team. | M5, M6 |
+| 2026-04-28 | **M5 Allure publish = GH Pages re-attempt → Vercel fallback** | Org policy có thể đã unlock; check `gh api repos/.../pages` first. Fallback Vercel nếu vẫn block. | M5 |
+| 2026-04-28 | **M5 spike-first cho LLM/AI feature** — Task 1 (classifier) + Task 4 (self-heal) viết spike doc trong `docs/spikes/` trước implement | LLM behavior khó predict; spike de-risk + de-scope nếu không khả thi (vd. self-heal trên Sauce Demo offline có giới hạn). | M5 |
+| 2026-04-28 | **Debt consolidation policy = repay batch ở M6 closure** (chỉ áp cho **verify-only debt**, không cho code-incomplete debt) | Phuc DN explicit workflow preference: "các debt cứ dồn về phase cuối, tao sẽ giải quyết luôn 1 lần". M4+M5 có thể mark 🟢 với verify debt 🟡 open; M6 closure dành sprint cuối purge. Code-incomplete debt vẫn repay milestone tiếp theo. **Áp dụng:** D5+D6 dời "Repay in" từ M4 closure → M6 closure. | M4 (revise), M5, M6 (closure constraint) |
 
 ---
 
