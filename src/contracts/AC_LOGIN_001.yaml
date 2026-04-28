@@ -1,0 +1,51 @@
+# AC_LOGIN_001 — Smoke: Login với valid credentials (Sauce Demo App)
+#
+# Plan ref: M2 Task 12 [Repay Debt D1].
+# Decision §4.D5c — UI + Negative layers (Sauce Demo offline → no api_layer).
+#   D3: state_layer skip M2 — Sauce Demo lưu state in-memory (chưa verify
+#       qua adb). Repay M3 sau khi swap real app HOẶC inspect prefs file.
+#
+# Spec ref: §5.2 Assertion Contract structure, §5.4 multi-layer.
+
+contract_id: AC_LOGIN_001
+test_scenario: TC_LOGIN_001
+schema_version: v1
+description: |
+  Login bằng standard_user/secret_sauce → land trên Products screen.
+  Verify UI (cart icon visible, login form gone) + Negative (no crash log).
+
+positive:
+  ui_layer:
+    - id: ui.cart_visible
+      type: element_visible
+      severity: critical
+      locator: ~test-Cart
+
+    - id: ui.login_form_gone
+      type: element_absent
+      severity: high
+      locator: ~test-Username
+
+    - id: ui.products_title_present
+      type: element_visible
+      severity: medium
+      locator: ~test-Cart
+
+negative:
+  # Scope crash detection tới process under test. Pattern "NullPointerException"
+  # generic bắt cả NPE của system services (TapAndPay, dlpn, ...) — false-fail.
+  # Logcat in dòng "Process: com.swaglabsmobileapp" chỉ khi AndroidRuntime ghi
+  # FATAL EXCEPTION cho process này → đây là crash dump tin cậy.
+  - id: neg.no_app_crash
+    type: log_pattern_absent
+    severity: critical
+    log_source: logcat
+    pattern: "Process:\\s*com\\.swaglabsmobileapp"
+    securityImpact: false
+
+  - id: neg.no_anr_logcat
+    type: log_pattern_absent
+    severity: high
+    log_source: logcat
+    pattern: "ANR in com\\.swaglabsmobileapp"
+    securityImpact: false

@@ -1,0 +1,39 @@
+{
+  "$schema": "./pool.schema.json",
+  "description": "Sauce Demo built-in users. Public credentials, password đồng nhất.",
+  "password": "secret_sauce",
+  "staleLeaseTimeoutMs": 300000,
+  "leaseAcquireTimeoutMs": 30000,
+  "users": [
+    {
+      "username": "standard_user",
+      "roles": ["standard", "smoke", "regression"],
+      "notes": "Normal flow. Default cho mọi smoke test."
+    },
+    {
+      "username": "locked_out_user",
+      "roles": ["locked_out", "negative"],
+      "notes": "Login thất bại với message 'Sorry, this user has been locked out'."
+    },
+    {
+      "username": "problem_user",
+      "roles": ["problem", "regression"],
+      "notes": "Login OK nhưng UI bugs (image swap, sort không đúng)."
+    },
+    {
+      "username": "performance_glitch_user",
+      "roles": ["performance_glitch", "perf"],
+      "notes": "Login chậm — dùng cho perf assertion test."
+    },
+    {
+      "username": "error_user",
+      "roles": ["error", "negative"],
+      "notes": "Random error trên 1 số action."
+    },
+    {
+      "username": "visual_user",
+      "roles": ["visual", "regression"],
+      "notes": "Visual glitch — defer M5/M6 visual regression tests."
+    }
+  ]
+}

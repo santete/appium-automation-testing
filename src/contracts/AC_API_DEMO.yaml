@@ -1,0 +1,39 @@
+# Framework demo contract — verify ApiChecker + AssertionRunner end-to-end
+# qua MSW. KHÔNG phải production test; consumed bởi
+# tests/integration/contract-execution.spec.ts.
+#
+# Plan ref: M2 Task 11, Decision §4.D5b/D9.
+
+contract_id: AC_API_DEMO
+test_scenario: TC_API_DEMO
+schema_version: v1
+description: Demo contract — assert MSW-mocked /users/me endpoint shape + status.
+
+positive:
+  api_layer:
+    - id: api.users_me_status
+      type: http_request
+      severity: critical
+      method: GET
+      url: http://localhost:4571/users/me
+      expect:
+        status: 200
+
+    - id: api.users_me_schema
+      type: http_request
+      severity: high
+      method: GET
+      url: http://localhost:4571/users/me
+      expect:
+        status: 200
+        schema_ref: User
+
+    - id: api.users_me_role
+      type: http_request
+      severity: medium
+      method: GET
+      url: http://localhost:4571/users/me
+      expect:
+        status: 200
+        body_contains:
+          role: admin

@@ -1,0 +1,40 @@
+node_modules/
+dist/
+reports/
+allure-results/
+allure-report/
+
+# env (chứa credentials — KHÔNG commit, spec §4.5)
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Claude Code local state (commit skills/ only)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# app binaries — tải về từng máy, không commit
+apps/*.apk
+apps/*.ipa
+!apps/.gitkeep
+
+# runtime state (account pool lock files, test temp)
+tmp/
+
+# Gradle (M4 task 13 minimal Kotlin app build)
+.gradle/
+**/build/
+local.properties

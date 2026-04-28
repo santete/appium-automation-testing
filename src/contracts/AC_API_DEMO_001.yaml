@@ -1,0 +1,44 @@
+# AC_API_DEMO_001 — D3 path B repay: chứng minh framework's API layer hoạt
+# động end-to-end với real public HTTP endpoint (KHÔNG qua MSW).
+#
+# Plan ref: M3 Task 15, Decision 6.
+# Endpoint: httpbin.org/json — stable JSON response, no rate limit cho test.
+#
+# Verification chạy trên Node thuần (no Appium) qua tests/api/api-demo.spec.ts.
+
+contract_id: AC_API_DEMO_001
+test_scenario: TC_API_DEMO_001
+schema_version: v1
+description: |
+  Verify ApiChecker hit real public API (httpbin.org), validate status +
+  schema_ref + body_contains. D3 repay path B.
+
+positive:
+  api_layer:
+    - id: api.httpbin_status
+      type: http_request
+      severity: critical
+      method: GET
+      url: https://httpbin.org/json
+      expect:
+        status: 200
+
+    - id: api.httpbin_schema
+      type: http_request
+      severity: high
+      method: GET
+      url: https://httpbin.org/json
+      expect:
+        status: 200
+        schema_ref: HttpbinSlideshow
+
+    - id: api.httpbin_body_contains
+      type: http_request
+      severity: medium
+      method: GET
+      url: https://httpbin.org/json
+      expect:
+        status: 200
+        body_contains:
+          slideshow:
+            author: Yours Truly
