@@ -274,3 +274,4 @@ describe('AccountPool', () => {
     expect(deps.lock.acquireCalls).to.be.at.least(2);
   });
 });
+const _force_fail_d5: string = 42;
