@@ -29,6 +29,12 @@ on:
         description: 'Source workflow run id (download artifact from)'
         required: false
 
+env:
+  # Forward-compat: Pages-specific actions (configure-pages / deploy-pages /
+  # upload-pages-artifact) chưa bump Node 24 official; ép runner chạy Node 24
+  # để tắt deprecation warning + tránh forced break 2026-06-02.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 permissions:
   contents: read
   pages: write
