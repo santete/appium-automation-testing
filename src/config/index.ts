@@ -39,6 +39,7 @@ const EnvSchema = z.object({
   BS_USERNAME: z.string().optional(),
   BS_ACCESS_KEY: z.string().optional(),
   BS_APP_URL: z.string().optional(),
+  BS_IOS_APP_URL: z.string().optional(),
   SAUCE_USERNAME: z.string().optional(),
   SAUCE_ACCESS_KEY: z.string().optional(),
   SAUCE_APP_STORAGE_ID: z.string().optional(),
@@ -48,6 +49,27 @@ const EnvSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === '1' || v === 'true'),
+
+  // ── M5 LLM adapter (config-driven, Decision 2) ───────────
+  LLM_PROVIDER: z.enum(['anthropic', 'openai', 'gemini', 'ollama', 'none']).default('none'),
+  LLM_API_KEY: z.string().optional(),
+  LLM_MODEL: z.string().optional(),
+  LLM_BASE_URL: z.string().url().optional(),
+  LLM_BUDGET_MONTHLY_USD: z.coerce.number().nonnegative().default(20),
+  LLM_SPEND_STATE_PATH: z.string().default('./tmp/llm-spend.json'),
+
+  // ── M5 metrics emit (InfluxDB) ───────────────────────────
+  INFLUX_URL: z.string().url().optional(),
+  INFLUX_TOKEN: z.string().optional(),
+  INFLUX_ORG: z.string().optional(),
+  INFLUX_BUCKET: z.string().optional(),
+
+  // ── M5 notify (SMTP fallback) ────────────────────────────
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  ALERT_EMAIL_TO: z.string().email().optional(),
 
   // ── Deprecated (D2 transition) ───────────────────────────
   TEST_USERNAME: z.string().optional(),

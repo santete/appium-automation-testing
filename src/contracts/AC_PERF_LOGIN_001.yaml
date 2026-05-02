@@ -1,0 +1,37 @@
+# AC_PERF_LOGIN_001 — Performance: Login flow ≤ 2000 ms (P95 SLA)
+#
+# Spec ref: §7.5 P95 SLA (login <2s).
+# Plan ref: M6 Task 1 — perf integration.
+#
+# Design:
+#   - Spec runs N=5 iterations. Mỗi iteration record markers
+#     `login_start` (trước khi tap LOGIN) và `login_end` (khi cart icon
+#     visible). Driver clear app state giữa các iteration.
+#   - Spec compute P95 từ durations array, emit qua PerfMetricEmitter,
+#     RỒI assert worst-case via contract `time_between` ≤ 2000 ms (giới
+#     hạn cứng cho 1 iteration sau cùng — `login_start_p95` /
+#     `login_end_p95` là synthetic markers spec set bằng giá trị P95).
+#   - PASS = P95 ≤ 2000 ms. FAIL → routeTo step 7 (RCA), assignTo qa_team.
+
+contract_id: AC_PERF_LOGIN_001
+test_scenario: TC_PERF_LOGIN_001
+schema_version: v1
+description: |
+  Performance smoke: 5 iterations of login (standard_user/secret_sauce) →
+  P95 latency ≤ 2000 ms theo spec §7.5.
+
+positive:
+  ui_layer:
+    - id: ui.cart_visible_post_login
+      type: element_visible
+      severity: critical
+      locator: ~test-Cart
+
+performance:
+  - id: perf.login_p95_under_2s
+    type: time_between
+    severity: critical
+    start_marker: login_p95_start
+    end_marker: login_p95_end
+    max_ms: 2000                    # real device baseline (Pixel 6 USB-tethered)
+    threshold_env_var: PERF_LOGIN_SLA_MS  # emulator override: set 5000 (~4-5x slower)

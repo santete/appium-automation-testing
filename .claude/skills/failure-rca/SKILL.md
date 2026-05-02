@@ -15,6 +15,23 @@ Map vào **Step 7 (Analyze & Debug)** + **§6 Feedback Loop Routing** spec `auto
 - User nói "test này fail tại sao / RCA / debug failure".
 - Auto-invoke khi `test-validate` ra verdict ≠ GENUINE_PASS.
 
+## M5 automation pipeline (auto-fed inputs)
+
+Trước khi viết RCA bằng tay, leverage automation đã có (M5 Task 1+2+7):
+
+1. **Classifier output** — `src/utils/classifier/engine.ts` đã chạy → có sẵn `FailureClassification` với `matchedRule`, `confidence`, `routeTo`, `assignTo`. Đọc field này thay vì re-derive routing.
+2. **LLM escalator** (`src/utils/classifier/llmEscalator.ts`) — confidence < 0.85 hoặc category UNKNOWN → adapter tự upgrade qua LLM (config-driven `.env`). Output đã merge vào classification.
+3. **KB appender** (`src/utils/kb/appender.ts`) — entry `KB-YYYYMMDD-NNN` đã tự ghi vào `docs/flaky_kb.md` với confidence ≥ 0.85. RCA file MỚI cần update `Links → RCA` trong entry đó (KB-side ID phải link 2 chiều).
+4. **Allure attachment** — afterTest hook đã attach screenshot + page source vào Allure run; reference URL Allure trong RCA Evidence section.
+
+Workflow mới (M5+):
+
+```
+Failure → classifier → KB skeleton (auto) → human triage → RCA file (template _template.md)
+                                                           → cross-link RCA ↔ KB entry
+                                                           → fix PR → verification ≥ 20 run → close
+```
+
 ## Quy trình bắt buộc
 
 ### 1. Reproduction check
@@ -49,74 +66,50 @@ Map vào **Step 7 (Analyze & Debug)** + **§6 Feedback Loop Routing** spec `auto
 | Perf regression | ✅ | Perf | Perf bug | Step 2 (review SLA) + dev |
 | PASS but should FAIL | ✅ | Assertion | Wrong contract | Step 2 (`assertion-contract` fix) |
 
-### 4. Output bắt buộc — RCA YAML
+### 4. Output bắt buộc — RCA file từ template
 
-```yaml
-test_id: TC_<DOMAIN>_<NNN>
-run_id: <uuid>
-result: FAIL | FLAKY (<pass_rate>/<total_runs>)
+**M5+ format:** copy `docs/rca/_template.md` thành `docs/rca/<TEST_ID>_<YYYY-MM-DD>.md`. Template (markdown table-style) thay cho YAML cũ — readable hơn trong GH UI + dễ link Allure attachment.
 
-timeline:
-  - <ISO8601>: <action>
-  - <ISO8601>: <observation>
-  - <ISO8601>: <fail point>
+Template sections (tất cả mandatory):
 
-category: BUG | SCRIPT_ISSUE | FLAKY | ENV_ISSUE | DATA_ISSUE
-layer: UI | API | STATE | PERF | INFRA
-
-root_cause:
-  description: <ngắn gọn, 1-2 câu>
-  evidence:
-    - <file path>: <relevant detail>
-  technical: <giải thích kỹ thuật>
-
-fix:
-  change: <thay đổi cụ thể>
-  file: <path>:<line>
-  alternative_considered: <option khác và lý do bỏ>
-
-verification:
-  before_fix: <pass_rate>
-  after_fix: <pass_rate>  # phải ≥20 run cùng env
-  regression_check: <list test khác đã verify không bị ảnh hưởng>
-
-feedback_route:
-  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
-  skill: <skill name nào sẽ apply fix>
-  assignee: dev_team | qa_team | devops_team
-  priority: P0 | P1 | P2 | P3
-```
+- **Metadata** — Test ID, classifier matchedRule + confidence, KB entry ID, severity, reproducibility.
+- **Timeline** — chronology actions/observations/fail point.
+- **Reproduction** — local steps + pass rate + env diff CI vs local.
+- **Root cause** — description (1-2 câu, dùng làm KB Pattern) + technical detail + evidence file paths.
+- **Fix** — change summary, file:line, PR link, alternative considered, risk.
+- **Verification** — before/after pass rate (M ≥ 20 per spec §6.4) + regression check.
+- **Feedback routing** — step, skill, assignee, priority.
+- **Loop closure checklist** — 8 checkbox tick trước khi đóng.
 
 ### 5. Loop closure checklist (spec §6.4)
 
-Trước khi đóng RCA, verify ALL:
+Sao chép vào RCA file (template đã có sẵn — chỉ tick):
+
 - [ ] Issue identified với evidence
-- [ ] Root cause documented
-- [ ] Fix implemented
-- [ ] Fix verified isolated (≥20 run cùng pass)
-- [ ] Regression check passed (test khác không bị ảnh hưởng)
-- [ ] RCA archived vào `docs/rca/<test_id>_<date>.yaml`
+- [ ] Root cause documented (technical detail)
+- [ ] Fix implemented + PR link present
+- [ ] Fix verified isolated (≥ 20 run cùng pass)
+- [ ] Regression check passed
+- [ ] RCA file committed vào `docs/rca/`
+- [ ] KB entry `Links → RCA` cập nhật trỏ về RCA file
+- [ ] KB entry `Remediation` viết tóm tắt change
 
 ### 6. Update Knowledge Base (spec §6.5)
 
-Sau mỗi RCA, update `docs/flaky_kb.md` (hoặc `kb/<category>.yaml`):
+KB entry skeleton đã được auto-append bởi `src/utils/kb/appender.ts` (M5 Task 7) — engineer chỉ cần update 2 manual section:
 
-```yaml
-patterns:
-  - pattern: "<symptom string ngắn>"
-    frequency: <count> occurrences
-    common_cause: <root cause typical>
-    common_fix: <fix typical>
-    last_seen: <date>
-```
+- **Remediation:** điền change summary từ Fix table.
+- **Links → RCA:** trỏ về `docs/rca/<TEST_ID>_<YYYY-MM-DD>.md`.
+- **Links → PR fix:** trỏ về PR khi merged.
 
-KB là input cho future debug — junior engineer tra KB trước khi RCA mới.
+KB là input cho future debug — junior engineer grep `Pattern:` trong `docs/flaky_kb.md` trước khi mở RCA mới. Dedup window 24h ngăn poison khi cùng failure fire nhiều lần (xem `kb/appender.ts`).
 
 ## Human-in-the-loop rule (spec §6.6)
 
-- Auto-classify nếu confidence > 0.9 (rõ ràng theo decision table).
-- Confidence ≤ 0.9 → flag cho human triage, không tự apply fix.
+- Auto-classify nếu rule-engine confidence ≥ 0.85 (M5 Task 1 hard cutoff). Engineer vẫn cần xác nhận route khi viết RCA — auto chỉ là first-pass.
+- Confidence < 0.85 → LLM escalator (Task 2) thử upgrade; vẫn < 0.85 → flag cho human triage, không tự apply fix.
 - Self-healing locator: SUGGEST PR, **KHÔNG auto-merge** (spec §7.8 + §9.4).
+- Flaky auto-quarantine (Task 3): combined threshold `<90%/30 AND ≥1/5` mới trigger; engineer có thể `quarantine: false` flag để force keep nếu xác định bug thật.
 
 ## Anti-pattern (spec §9.3, §9.4)
 

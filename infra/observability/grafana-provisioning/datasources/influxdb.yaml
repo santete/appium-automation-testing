@@ -1,0 +1,18 @@
+# M5 Task 5 — auto-provision InfluxDB datasource cho Grafana.
+# Boot Grafana → datasource sẵn sàng, KHÔNG cần manual click.
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    jsonData:
+      version: Flux
+      organization: mobile-automation
+      defaultBucket: test-runs
+      tlsSkipVerify: true
+    secureJsonData:
+      token: ${INFLUX_TOKEN}
+    isDefault: true
+    editable: false

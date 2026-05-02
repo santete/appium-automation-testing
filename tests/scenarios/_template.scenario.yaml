@@ -1,0 +1,190 @@
+# Scenario YAML — output từ skill `/test-requirement`
+#
+# Vai trò: intermediate artifact giữa BRD (plain English business)
+# và Assertion Contract (technical multi-layer assertion).
+#
+# Read direction: BRD → scenario YAML → contract YAML → spec.ts
+#
+# Đối tượng đọc: QA owner, PM (cross-check ambiguity), reviewer PR.
+# KHÔNG phải input cho test runner — file này không execute.
+
+# ─── Metadata ──────────────────────────────────────────────────────────────
+feature_id: FEAT-NNN                    # match Jira/Linear ticket
+feature_name: <Apply discount coupon at checkout>
+brd_ref: docs/requirements/BRD-<slug>-<YYYY-MM-DD>.md
+qa_owner: <name>
+created_date: <YYYY-MM-DD>
+status: DRAFT | CLARIFY_PENDING | READY_FOR_CONTRACT | DONE
+platform_scope: android | ios | both
+
+# ─── Test scenarios ────────────────────────────────────────────────────────
+# Mỗi scenario = 1 testable behavior, sẽ map 1-1 với 1 Assertion Contract.
+# Naming: <DOMAIN>_<NNN> trong field test_id để consistent với Contract file.
+
+scenarios:
+  - test_id: TC_COUPON_001
+    type: positive
+    priority: P0                        # P0 = critical (smoke), P1 = regression, P2 = edge case
+    suite: smoke                        # smoke | regression | negative | perf | visual | nightly
+    title: Apply valid 10% coupon reduces cart total correctly
+    given: User logged in, cart has 2 items totaling $100
+    when: User enters coupon code "SAVE10" and taps Apply
+    then:
+      - Discount line item appears showing -$10
+      - Cart total updates to $90
+      - Coupon code persists when navigating away and back
+    acceptance_ref: [AC-1, AC-3]        # link about §10 BRD
+    estimated_runtime_sec: 25
+    automatable: true
+    notes: ""
+
+  - test_id: TC_COUPON_002
+    type: positive
+    priority: P0
+    suite: smoke
+    title: Apply free-shipping coupon zeros out shipping cost
+    given: User logged in, cart with $50 items + $5 shipping
+    when: User applies code "FREESHIP"
+    then:
+      - Shipping line item shows -$5
+      - Total reduced from $55 to $50
+    acceptance_ref: [AC-1]
+    automatable: true
+    notes: ""
+
+  - test_id: TC_COUPON_NEG_001
+    type: negative
+    priority: P0
+    suite: negative
+    title: Invalid coupon shows inline error, total unchanged
+    given: User logged in, cart with items totaling $100
+    when: User enters code "INVALID123" and taps Apply
+    then:
+      - Inline error appears (not toast) under input field
+      - Error message i18n key matches "coupon.invalid"
+      - Cart total remains $100
+      - Coupon input remains editable
+    acceptance_ref: [AC-2]
+    automatable: true
+    notes: ""
+
+  - test_id: TC_COUPON_NEG_002
+    type: negative
+    priority: P1
+    suite: negative
+    title: Expired coupon rejected with specific error code
+    given: Coupon "EXPIRED2025" was valid in 2025 but is past expiry
+    when: User applies the expired code
+    then:
+      - API response 400 with error_code=EXPIRED
+      - UI shows i18n message "coupon.expired"
+    acceptance_ref: [AC-2]
+    automatable: true
+    notes: Need test fixture with backdated coupon.
+
+  - test_id: TC_COUPON_PERF_001
+    type: performance
+    priority: P1
+    suite: perf
+    title: Apply coupon response P95 under 1.5s
+    given: Cart with 5 items, network = full LTE
+    when: Apply valid coupon 30 iterations
+    then:
+      - P95 response time < 1500ms (per BRD §4 NFR)
+      - No error during iterations
+    acceptance_ref: [AC-4]
+    automatable: true
+    notes: Threshold env-aware — emulator override 4000ms.
+
+  - test_id: TC_COUPON_EDGE_001
+    type: edge_case
+    priority: P2
+    suite: nightly
+    title: Apply 2 codes consecutively — second replaces first
+    given: User just applied code "SAVE10"
+    when: User applies code "SAVE20"
+    then:
+      - Discount line item updates to reflect SAVE20 only
+      - Original SAVE10 discount removed
+      - No "stacked discount" visual artifact
+    acceptance_ref: []                  # PM chưa confirm behavior — clarify needed
+    automatable: true
+    notes: "Behavior not explicit in BRD §7 — see clarify_needed Q3 below."
+
+# ─── Clarification needed ──────────────────────────────────────────────────
+# Skill `/test-requirement` flag ambiguity ở đây. QA copy block này gửi PM
+# (Slack/Jira comment) để clarify trước khi invoke `/assertion-contract`.
+
+clarify_needed:
+  - id: Q1
+    scenario_ref: [TC_COUPON_NEG_002]
+    question: Coupon expiry check theo UTC hay theo timezone client?
+    why_blocking: Server-side validation logic ảnh hưởng đến test data
+      factory (createCoupon ở timezone nào).
+    options:
+      - A: UTC — đơn giản, test fixture rõ ràng.
+      - B: Client tz — phức tạp, cần test với mock device tz.
+    pm_answer: ""                       # ← PM fill, QA update yaml + close clarify
+    answered_by: ""
+    answered_date: ""
+
+  - id: Q2
+    scenario_ref: [TC_COUPON_001, TC_COUPON_002]
+    question: Apply thành công persist qua app kill/restart hay chỉ trong session?
+    why_blocking: Quyết định có cần thêm scenario State assertion sau restart.
+    options:
+      - A: Persist (server-side cart) — thêm 1 scenario restart-and-verify.
+      - B: Session only — chỉ verify trong 1 session test.
+    pm_answer: ""
+    answered_by: ""
+    answered_date: ""
+
+  - id: Q3
+    scenario_ref: [TC_COUPON_EDGE_001]
+    question: Apply code 2 → replace code 1 hay reject với error "đã có coupon"?
+    why_blocking: Hai behavior trái ngược, scenario sẽ khác hoàn toàn.
+    options:
+      - A: Replace — TC_COUPON_EDGE_001 như đã viết.
+      - B: Reject — viết lại scenario thành negative case.
+    pm_answer: ""
+    answered_by: ""
+    answered_date: ""
+
+# ─── Testability assessment ────────────────────────────────────────────────
+# Skill flag scenarios khó/không automate được + recommend manual coverage.
+
+testability:
+  fully_automatable:
+    - TC_COUPON_001
+    - TC_COUPON_002
+    - TC_COUPON_NEG_001
+    - TC_COUPON_NEG_002
+    - TC_COUPON_PERF_001
+    - TC_COUPON_EDGE_001
+
+  manual_only: []                       # Vd: visual brand color compliance
+
+  partial_automation: []                # Vd: backend job timing — auto trigger, manual verify side-effect
+
+  blockers:
+    - issue: Need backend endpoint POST /api/v2/cart/apply-coupon mock cho contract test (Pact).
+      owner: dev_team
+      status: pending
+
+# ─── Coverage map ──────────────────────────────────────────────────────────
+# Verify mọi BRD acceptance criteria đã được scenario cover.
+
+coverage:
+  AC-1: [TC_COUPON_001, TC_COUPON_002]
+  AC-2: [TC_COUPON_NEG_001, TC_COUPON_NEG_002]
+  AC-3: [TC_COUPON_001]
+  AC-4: [TC_COUPON_PERF_001]
+
+  uncovered_ac: []                      # ← block khi không empty: thiếu coverage
+  out_of_scope_acknowledged:
+    - Stacked coupons (BRD §8 explicit out-of-scope)
+
+# ─── Next step ─────────────────────────────────────────────────────────────
+# Khi clarify_needed all answered + uncovered_ac empty + status=READY_FOR_CONTRACT:
+# → invoke `/assertion-contract` cho từng test_id
+# → output `src/contracts/AC_<TC_ID>.yaml`

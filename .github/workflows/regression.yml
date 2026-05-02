@@ -38,11 +38,15 @@ jobs:
       NETWORK_SIM_DEFAULT: full
 
     steps:
+      - name: Record start time
+        id: timer-start
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -70,12 +74,37 @@ jobs:
 
       - name: Upload Allure results (artifact)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: allure-results-regression-${{ github.run_id }}
           path: reports/allure-results
           if-no-files-found: ignore
           retention-days: 30
+
+      - name: Track pipeline duration → InfluxDB (M5 Task 8)
+        if: always()
+        env:
+          INFLUX_URL: ${{ secrets.INFLUX_URL }}
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+          INFLUX_ORG: mobile-automation
+          INFLUX_BUCKET: test-runs
+          WORKFLOW: regression
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          DURATION_SECONDS=$(( $(date +%s) - ${{ steps.timer-start.outputs.epoch }} ))
+          export DURATION_SECONDS
+          node scripts/append-duration.cjs
+
+      - name: KPI window gate (M6 Task 6 — Hybrid Decision 5)
+        if: github.event_name == 'schedule'
+        env:
+          INFLUX_URL: ${{ secrets.INFLUX_URL }}
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+          INFLUX_ORG: mobile-automation
+          INFLUX_BUCKET: test-runs
+          KPI_WINDOW_DAYS: '14'
+          KPI_BRANCH: main
+        run: node scripts/check-kpi-window.cjs --soft
 
       # Plan v1.1 (2026-04-28): Allure host + Slack notify defer M5. Workflow
       # giữ artifact upload only — anh download zip → unzip → mở `index.html`

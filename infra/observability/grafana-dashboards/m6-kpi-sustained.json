@@ -1,0 +1,352 @@
+{
+  "uid": "m6-kpi-sustained",
+  "title": "M6 KPI Sustained (14-day rolling)",
+  "tags": ["m6", "kpi", "sustained", "acceptance"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5m",
+  "time": { "from": "now-14d", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "branch",
+        "type": "query",
+        "datasource": { "type": "influxdb", "uid": "influxdb" },
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"test-runs\", tag: \"branch\")",
+        "current": { "text": "main", "value": "main" },
+        "includeAll": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Genuine pass rate (14d) — target > 95%",
+      "description": "Spec §8.1. Target: green when >= 0.95 sustained. Decision 5: 4 critical KPI auto-gated.",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.9 },
+              { "color": "green", "value": 0.95 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"test-runs\") |> range(start: -14d) |> filter(fn: (r) => r._measurement == \"test_run\" and r._field == \"status\" and r.branch == \"${branch}\") |> mean()"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Flaky rate (14d) — target < 3%",
+      "description": "Spec §8.2. Auto-gated. Computed from flaky_verdict.should_quarantine ratio.",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 0.2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.03 },
+              { "color": "red", "value": 0.05 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"test-runs\") |> range(start: -14d) |> filter(fn: (r) => r._measurement == \"flaky_verdict\" and r._field == \"should_quarantine\") |> mean()"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "False-positive rate (14d) — target < 1%",
+      "description": "Spec §8.2. Auto-gated. Tracked qua manual classification 'false_positive' tag emit từ classifier.",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 0.1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.01 },
+              { "color": "red", "value": 0.02 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"test-runs\") |> range(start: -14d) |> filter(fn: (r) => r._measurement == \"test_run\" and r._field == \"category\") |> map(fn: (r) => ({ r with _value: if r._value == \"false_positive\" then 1.0 else 0.0 })) |> mean()"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Pipeline duration P95 (14d) — PR target < 10min",
+      "description": "Spec §8.3. Auto-gated. Workflow=ci.yml chỉ.",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 480 },
+              { "color": "red", "value": 600 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"test-runs\") |> range(start: -14d) |> filter(fn: (r) => r._measurement == \"pipeline_duration\" and r._field == \"duration_seconds\" and r.workflow == \"ci.yml\") |> quantile(q: 0.95)"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Critical flow coverage (latest) — target 100%",
+      "description": "Spec §8.1. Manual review (Decision 5). 4 critical flow: login, products, cart, checkout.",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 5 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.9 },
+              { "color": "green", "value": 1.0 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"test-runs\") |> range(start: -14d) |> filter(fn: (r) => r._measurement == \"coverage\" and r._field == \"critical_flow_pct\") |> last()"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "MTTD (14d) — target < 30 min",
+      "description": "Spec §8.3. Manual review (Decision 5). Mean time test fail → GH Issue created.",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 5 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 20 },
+              { "color": "red", "value": 30 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"test-runs\") |> range(start: -14d) |> filter(fn: (r) => r._measurement == \"mttd\" and r._field == \"minutes\") |> mean()"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "MTTF P0 (14d) — target < 4h",
+      "description": "Spec §8.3. Manual review (Decision 5). Mean time P0 issue created → fix merged.",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 5 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3 },
+              { "color": "red", "value": 4 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"test-runs\") |> range(start: -14d) |> filter(fn: (r) => r._measurement == \"mttf\" and r._field == \"hours\" and r.severity == \"P0\") |> mean()"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Regression duration P95 (14d) — target < 30min",
+      "description": "Spec §8.3. Auto-gated. Workflow=regression.yml.",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 5 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1500 },
+              { "color": "red", "value": 1800 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"test-runs\") |> range(start: -14d) |> filter(fn: (r) => r._measurement == \"pipeline_duration\" and r._field == \"duration_seconds\" and r.workflow == \"regression.yml\") |> quantile(q: 0.95)"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Pass rate trend (14d daily) — green-day count for sustain gate",
+      "description": "Done criteria §2: ≥ 10/14 ngày green = pass M6.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "target" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash" } },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"test-runs\") |> range(start: -14d) |> filter(fn: (r) => r._measurement == \"test_run\" and r._field == \"status\" and r.branch == \"${branch}\") |> aggregateWindow(every: 1d, fn: mean) |> yield(name: \"actual\")"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"test-runs\") |> range(start: -14d) |> filter(fn: (r) => r._measurement == \"test_run\" and r._field == \"status\") |> aggregateWindow(every: 1d, fn: mean) |> map(fn: (r) => ({ r with _value: 0.95, _field: \"target\" })) |> yield(name: \"target\")"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Flaky rate trend (14d daily)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 0.15,
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10 }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"test-runs\") |> range(start: -14d) |> filter(fn: (r) => r._measurement == \"flaky_verdict\" and r._field == \"should_quarantine\") |> aggregateWindow(every: 1d, fn: mean) |> yield(name: \"actual\")"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"test-runs\") |> range(start: -14d) |> filter(fn: (r) => r._measurement == \"flaky_verdict\" and r._field == \"should_quarantine\") |> aggregateWindow(every: 1d, fn: mean) |> map(fn: (r) => ({ r with _value: 0.03, _field: \"target\" })) |> yield(name: \"target\")"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Green days / 14 (sustain ratio)",
+      "description": "Decision 5 gate: pass khi >= 10/14. Computed: count of days where pass_rate >= 0.95 AND flaky_rate < 0.03.",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 18 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 8 },
+              { "color": "green", "value": 10 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "import \"experimental\"\nfrom(bucket: \"test-runs\") |> range(start: -14d) |> filter(fn: (r) => r._measurement == \"test_run\" and r._field == \"status\") |> aggregateWindow(every: 1d, fn: mean) |> filter(fn: (r) => r._value >= 0.95) |> count()"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Daily KPI breakdown (14d)",
+      "description": "Per-day view: pass_rate, flaky_rate, runs_count. Use for closure batch evidence.",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 18 },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"test-runs\") |> range(start: -14d) |> filter(fn: (r) => r._measurement == \"test_run\" and r._field == \"status\") |> aggregateWindow(every: 1d, fn: mean) |> sort(columns: [\"_time\"], desc: true)"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,118 @@
+# Stability gate (D12 / M7 Task 5) — auto-enforce spec §6.4 "≥ 20 run cùng pass"
+# cho test MỚI ship trong PR.
+#
+# Trigger: PR add file mới `tests/.../*.spec.ts` (auto-detect qua git diff).
+# Action: chạy spec mới 20 lần (sequential), block merge nếu < 19/20 pass.
+#
+# Phân loại spec mới (scripts/detect-new-spec.cjs):
+#   - runnable (unit/integration/api): chạy 20× trên CI runner.
+#   - device-required (smoke/regression/visual/perf): SKIP với note "manual
+#     20-run gate trên local/device farm" (CI không có device, không thể
+#     enforce auto). PR description phải có checkbox "smoke 20-run local PASS".
+#
+# Override: PR label `skip-stability-gate` → workflow short-circuit (rename
+# edge case theo Decision 3 M7).
+name: Stability gate
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: stability-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    name: Detect new specs
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-stability-gate') }}
+    timeout-minutes: 3
+    outputs:
+      has_runnable: ${{ steps.detect.outputs.has_runnable }}
+      runnable_specs: ${{ steps.detect.outputs.runnable_specs }}
+      device_specs: ${{ steps.detect.outputs.device_specs }}
+    steps:
+      - name: Checkout (full history for diff)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Detect added spec files
+        id: detect
+        env:
+          BASE_REF: origin/${{ github.event.pull_request.base.ref }}
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=50
+          node scripts/detect-new-spec.cjs
+
+      - name: Summary — device-required specs (manual gate)
+        if: steps.detect.outputs.device_specs != '[]'
+        run: |
+          echo "::warning::Device-required specs detected — gate runs 20× MANUAL on local/farm:"
+          echo "${{ steps.detect.outputs.device_specs }}"
+          echo "PR template checkbox 'smoke 20-run local PASS' is REQUIRED before merge."
+
+  stability-run:
+    name: 20-run stability check
+    needs: detect
+    runs-on: ubuntu-latest
+    if: needs.detect.outputs.has_runnable == 'true'
+    timeout-minutes: 20
+    env:
+      ALLOW_NETWORK_INTEGRATION: ''
+      ACCOUNT_POOL_CONFIG_PATH: ./src/utils/accountPool/pool.config.json
+      ACCOUNT_POOL_STATE_PATH: ./tmp/account-pool.state.json
+      ANDROID_DEVICE_NAME: ci-stub
+      ANDROID_PLATFORM_VERSION: '13'
+      APP_PATH: ./apps/SauceLabs-Demo-App.apk
+      ENV_PROFILE: local
+      NETWORK_SIM_DEFAULT: full
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run new specs 20× (block if < 19 pass)
+        env:
+          RUNNABLE_SPECS: ${{ needs.detect.outputs.runnable_specs }}
+        run: |
+          set -uo pipefail
+          specs=$(echo "$RUNNABLE_SPECS" | node -e 'const a=JSON.parse(require("fs").readFileSync(0,"utf8"));process.stdout.write(a.join(" "));')
+          if [ -z "$specs" ]; then
+            echo "No runnable specs — exit 0"
+            exit 0
+          fi
+          echo "Running 20 iterations of: $specs"
+          pass=0
+          fail=0
+          for i in $(seq 1 20); do
+            echo "::group::Iteration $i"
+            # shellcheck disable=SC2086 # $specs intentionally unquoted to word-split into multiple file args
+            if npx mocha --config .mocharc.unit.cjs $specs; then
+              pass=$((pass + 1))
+              echo "Iter $i PASS (running pass=$pass)"
+            else
+              fail=$((fail + 1))
+              echo "Iter $i FAIL (running fail=$fail)"
+            fi
+            echo "::endgroup::"
+          done
+          echo ""
+          echo "==== Stability gate result ===="
+          echo "PASS: $pass / 20"
+          echo "FAIL: $fail / 20"
+          if [ "$pass" -lt 19 ]; then
+            echo "::error::Stability gate FAIL — pass=$pass < 19/20 threshold (spec §6.4)"
+            exit 1
+          fi
+          echo "Stability gate PASS"

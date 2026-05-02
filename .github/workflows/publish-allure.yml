@@ -1,0 +1,119 @@
+# Publish Allure report (M5 Task 9).
+#
+# Plan ref: docs/plans/M5-observability.md Decision 7 (GH Pages re-attempt
+# với Vercel fallback) + acceptance §2 sub-point 6 (Allure URL share-able
+# trong < 2 phút sau workflow done).
+#
+# Trigger: chạy sau khi `CI` hoặc `Regression (nightly)` workflow xong (success
+# hoặc fail — vẫn publish report để debug). Manual `workflow_dispatch` cho
+# rebuild on-demand.
+#
+# Strategy:
+#   1. Download allure-results artifact từ workflow upstream (matched by run_id).
+#   2. Generate static HTML report bằng `npx allure generate`.
+#   3. Deploy lên GH Pages (env `github-pages`). URL: <user>.github.io/<repo>/.
+#   4. Vercel fallback (Decision 7 plan B) → manual switch khi GH Pages bị block:
+#      uncomment Vercel block + set `VERCEL_TOKEN` secret.
+#
+# History retention: GH Pages chỉ giữ latest. Cho history multi-run, dùng
+# subfolder `/<run_id>/` hoặc upgrade Vercel preview deployments (defer M6).
+name: Publish Allure
+
+on:
+  workflow_run:
+    workflows: ['CI', 'Regression (nightly)']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Source workflow run id (download artifact from)'
+        required: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  actions: read
+
+concurrency:
+  group: publish-allure
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install deps (allure-commandline)
+        run: npm ci
+
+      - name: Download Allure results from upstream workflow
+        uses: actions/download-artifact@v5
+        with:
+          pattern: allure-results-*
+          path: ./reports/allure-results-raw
+          merge-multiple: true
+          run-id: ${{ github.event.workflow_run.id || inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Move artifacts vào allure-results dir
+        run: |
+          mkdir -p ./reports/allure-results
+          if [ -d ./reports/allure-results-raw ]; then
+            cp -r ./reports/allure-results-raw/. ./reports/allure-results/ || true
+          fi
+          find ./reports/allure-results -maxdepth 1 -mindepth 1 | head -20
+
+      - name: Generate Allure HTML report
+        run: npm run allure:generate
+
+      - name: Inject run metadata banner
+        run: |
+          cat > ./reports/allure-report/run-meta.json <<EOF
+          {
+            "publishedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "sourceWorkflow": "${{ github.event.workflow_run.name || 'manual' }}",
+            "sourceRunId": "${{ github.event.workflow_run.id || inputs.run_id }}",
+            "sourceConclusion": "${{ github.event.workflow_run.conclusion || 'manual' }}",
+            "sha": "${{ github.event.workflow_run.head_sha || github.sha }}"
+          }
+          EOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./reports/allure-report
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+      # ── Vercel fallback (Decision 7 plan B) ───────────────────────────
+      # Khi GH Pages bị org policy block, comment-out steps configure-pages /
+      # upload-pages-artifact / deploy-pages ở trên và uncomment block dưới.
+      # Cần secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID.
+      #
+      # - name: Vercel deploy fallback
+      #   env:
+      #     VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      #     VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      #     VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      #   run: |
+      #     npx vercel --prod --yes --token "$VERCEL_TOKEN" \
+      #       --cwd ./reports/allure-report

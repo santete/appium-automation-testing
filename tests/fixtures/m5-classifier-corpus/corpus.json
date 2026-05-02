@@ -1,0 +1,258 @@
+{
+  "$schema": "M5 Task 12 acceptance corpus — 20 failure samples.",
+  "$description": "Mỗi case có ClassifierInput + expected category + expected matchedRule + minConfidence. Harness ở tests/unit/m5-classifier-acceptance.spec.ts assert ≥ 16/20 case có confidence ≥ 0.9 (acceptance §2 sub-point 1).",
+  "cases": [
+    {
+      "id": "C01",
+      "label": "env-issue:ci-only-pass-locally — CI pipeline có proxy nội bộ",
+      "input": {
+        "testId": "TC_LOGIN_001",
+        "errorMessage": "Network unreachable on CI runner",
+        "layer": "API",
+        "reproductionRate": 1.0,
+        "envContext": "ci-only",
+        "evidenceFiles": ["logs/ci/run-1.log"]
+      },
+      "expected": { "category": "ENV_ISSUE", "matchedRule": "env-issue:ci-only-pass-locally", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C02",
+      "label": "env-issue:ci-only-pass-locally — emulator chip diff CI vs local",
+      "input": {
+        "testId": "TC_CART_010",
+        "errorMessage": "Element timed out — only on CI",
+        "layer": "UI",
+        "reproductionRate": 1.0,
+        "envContext": "ci-only"
+      },
+      "expected": { "category": "ENV_ISSUE", "matchedRule": "env-issue:ci-only-pass-locally", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C03",
+      "label": "env-issue:ci-only-pass-locally — DNS không resolve",
+      "input": {
+        "testId": "TC_API_005",
+        "errorMessage": "ENOTFOUND backend.local",
+        "layer": "API",
+        "reproductionRate": 1.0,
+        "envContext": "ci-only"
+      },
+      "expected": { "category": "ENV_ISSUE", "matchedRule": "env-issue:ci-only-pass-locally", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C04",
+      "label": "data-issue:conflict-marker — duplicate user id từ pool",
+      "input": {
+        "testId": "TC_REGISTER_001",
+        "errorMessage": "User already exists",
+        "layer": "API",
+        "reproductionRate": 1.0,
+        "envContext": "both",
+        "hasDataConflictMarker": true
+      },
+      "expected": { "category": "DATA_ISSUE", "matchedRule": "data-issue:conflict-marker", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C05",
+      "label": "data-issue:conflict-marker — account pool exhausted",
+      "input": {
+        "testId": "TC_CHECKOUT_007",
+        "errorMessage": "NoAccountAvailableError pool=qa-locked",
+        "layer": "STATE",
+        "reproductionRate": 1.0,
+        "envContext": "both",
+        "hasDataConflictMarker": true
+      },
+      "expected": { "category": "DATA_ISSUE", "matchedRule": "data-issue:conflict-marker", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C06",
+      "label": "data-issue:conflict-marker — fixture leftover từ run trước",
+      "input": {
+        "testId": "TC_PROFILE_003",
+        "errorMessage": "duplicate key value violates unique constraint",
+        "layer": "API",
+        "reproductionRate": 0.95,
+        "envContext": "both",
+        "hasDataConflictMarker": true
+      },
+      "expected": { "category": "DATA_ISSUE", "matchedRule": "data-issue:conflict-marker", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C07",
+      "label": "bug:schema-validation-fail — field rename trong response",
+      "input": {
+        "testId": "TC_API_USER_001",
+        "errorMessage": "Zod parse failed: expected string at .user.fullName, got undefined",
+        "layer": "API",
+        "reproductionRate": 1.0,
+        "envContext": "both",
+        "hasSchemaValidationError": true
+      },
+      "expected": { "category": "BUG", "matchedRule": "bug:schema-validation-fail", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C08",
+      "label": "bug:schema-validation-fail — type drift number → string",
+      "input": {
+        "testId": "TC_API_ORDER_002",
+        "errorMessage": "Schema mismatch on /orders price field",
+        "layer": "API",
+        "reproductionRate": 1.0,
+        "envContext": "both",
+        "hasSchemaValidationError": true
+      },
+      "expected": { "category": "BUG", "matchedRule": "bug:schema-validation-fail", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C09",
+      "label": "bug:schema-validation-fail — required field missing",
+      "input": {
+        "testId": "TC_API_AUTH_004",
+        "errorMessage": "JSON schema validation failed: required field 'token' missing",
+        "layer": "API",
+        "reproductionRate": 1.0,
+        "envContext": "both",
+        "hasSchemaValidationError": true
+      },
+      "expected": { "category": "BUG", "matchedRule": "bug:schema-validation-fail", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C10",
+      "label": "bug:api-5xx — backend NPE",
+      "input": {
+        "testId": "TC_PAYMENT_001",
+        "errorMessage": "Request failed with status code 500",
+        "layer": "API",
+        "reproductionRate": 1.0,
+        "envContext": "both",
+        "httpStatusCode": 500
+      },
+      "expected": { "category": "BUG", "matchedRule": "bug:api-5xx", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C11",
+      "label": "bug:api-5xx — bad gateway",
+      "input": {
+        "testId": "TC_SEARCH_002",
+        "errorMessage": "Bad Gateway",
+        "layer": "API",
+        "reproductionRate": 1.0,
+        "envContext": "both",
+        "httpStatusCode": 502
+      },
+      "expected": { "category": "BUG", "matchedRule": "bug:api-5xx", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C12",
+      "label": "bug:api-5xx — DB constraint",
+      "input": {
+        "testId": "TC_INVENTORY_009",
+        "errorMessage": "internal error 503 service unavailable",
+        "layer": "API",
+        "reproductionRate": 1.0,
+        "envContext": "both",
+        "httpStatusCode": 503
+      },
+      "expected": { "category": "BUG", "matchedRule": "bug:api-5xx", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C13",
+      "label": "bug:perf-regression — search SLA breach",
+      "input": {
+        "testId": "TC_SEARCH_PERF_001",
+        "errorMessage": "Perf assertion failed: P95 latency 1850ms > SLA 1500ms",
+        "layer": "PERF",
+        "reproductionRate": 1.0,
+        "envContext": "both"
+      },
+      "expected": { "category": "BUG", "matchedRule": "bug:perf-regression", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C14",
+      "label": "bug:perf-regression — cold start regress",
+      "input": {
+        "testId": "TC_LAUNCH_PERF_002",
+        "errorMessage": "App cold start 4200ms exceeds 3000ms threshold",
+        "layer": "PERF",
+        "reproductionRate": 0.95,
+        "envContext": "both"
+      },
+      "expected": { "category": "BUG", "matchedRule": "bug:perf-regression", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C15",
+      "label": "flaky:intermittent — UI race fail 4/10",
+      "input": {
+        "testId": "TC_CART_FLAKY_001",
+        "errorMessage": "Element click intercepted",
+        "layer": "UI",
+        "reproductionRate": 0.6,
+        "envContext": "both"
+      },
+      "expected": { "category": "FLAKY", "matchedRule": "flaky:intermittent", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C16",
+      "label": "flaky:intermittent — API race 3/10",
+      "input": {
+        "testId": "TC_API_FLAKY_002",
+        "errorMessage": "Sometimes 200 sometimes 500",
+        "layer": "API",
+        "reproductionRate": 0.7,
+        "envContext": "both"
+      },
+      "expected": { "category": "FLAKY", "matchedRule": "flaky:intermittent", "minConfidence": 0.9 }
+    },
+    {
+      "id": "C17",
+      "label": "script-issue:wrong-assertion — assertion never executed (low conf 0.85)",
+      "input": {
+        "testId": "TC_LOGIN_ASSERT_001",
+        "errorMessage": "wrong assertion contract — assertion never ran",
+        "layer": "UI",
+        "reproductionRate": 1.0,
+        "envContext": "both",
+        "hasMissingAssertionMarker": true
+      },
+      "expected": { "category": "SCRIPT_ISSUE", "matchedRule": "script-issue:wrong-assertion", "minConfidence": 0.85 }
+    },
+    {
+      "id": "C18",
+      "label": "script-issue:locator-or-animation — stale element (low conf 0.85)",
+      "input": {
+        "testId": "TC_PROFILE_LOCATOR_001",
+        "errorMessage": "stale element reference: element is not attached to the page document",
+        "layer": "UI",
+        "reproductionRate": 1.0,
+        "envContext": "both",
+        "hasLocatorOrAnimationIssue": true
+      },
+      "expected": { "category": "SCRIPT_ISSUE", "matchedRule": "script-issue:locator-or-animation", "minConfidence": 0.85 }
+    },
+    {
+      "id": "C19",
+      "label": "env-issue:network-timeout — backend down (conf 0.80)",
+      "input": {
+        "testId": "TC_API_TIMEOUT_003",
+        "errorMessage": "Request timed out after 30000ms",
+        "layer": "API",
+        "reproductionRate": 1.0,
+        "envContext": "both"
+      },
+      "expected": { "category": "ENV_ISSUE", "matchedRule": "env-issue:network-timeout", "minConfidence": 0.8 }
+    },
+    {
+      "id": "C20",
+      "label": "UNKNOWN fallback — ambiguous failure không match rule nào (conf 0.0)",
+      "input": {
+        "testId": "TC_OBSCURE_001",
+        "errorMessage": "Unexpected behavior — manifest field missing in build",
+        "layer": "STATE",
+        "reproductionRate": 1.0,
+        "envContext": "both"
+      },
+      "expected": { "category": "UNKNOWN", "matchedRule": "no-match", "minConfidence": 0.0 }
+    }
+  ]
+}

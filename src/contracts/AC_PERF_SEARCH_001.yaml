@@ -1,0 +1,31 @@
+# AC_PERF_SEARCH_001 — Performance: Products list render ≤ 1500 ms (P95 SLA)
+#
+# Spec ref: §7.5 P95 SLA (search <1.5s).
+# Plan ref: M6 Task 1 — perf integration.
+#
+# Sauce Demo không có search bar → đo proxy "products list render" làm
+# target SLA (post-login → first ADD TO CART button visible). Nếu sau này
+# swap app có real search, đổi markers + add api_layer hit search endpoint.
+
+contract_id: AC_PERF_SEARCH_001
+test_scenario: TC_PERF_SEARCH_001
+schema_version: v1
+description: |
+  Performance smoke: 5 iterations of products list render (post-login →
+  first ADD TO CART visible) → P95 latency ≤ 1500 ms theo spec §7.5.
+
+positive:
+  ui_layer:
+    - id: ui.first_add_to_cart_visible
+      type: element_visible
+      severity: critical
+      locator: '~test-ADD TO CART'
+
+performance:
+  - id: perf.search_p95_under_1500ms
+    type: time_between
+    severity: critical
+    start_marker: search_p95_start
+    end_marker: search_p95_end
+    max_ms: 1500                      # real device baseline
+    threshold_env_var: PERF_SEARCH_SLA_MS  # emulator override: set 4000

@@ -38,3 +38,6 @@ tmp/
 .gradle/
 **/build/
 local.properties
+
+# Pact consumer outputs (M6 Task 3 — published via broker M7+)
+pacts/
