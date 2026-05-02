@@ -78,3 +78,5 @@ Trước khi sửa code:
 1. Đọc nguyên tắc bất biến trong [`CLAUDE.md`](CLAUDE.md) — đặc biệt no-pause, multi-layer assertion, plan-before-execute.
 2. Check [`ROADMAP.md`](ROADMAP.md) xem thay đổi thuộc milestone nào, plan đã sign-off chưa.
 3. Đọc [`docs/plans/_template.md`](docs/plans/_template.md) nếu start milestone mới.
+
+<!-- M4 acceptance D5 verify 2026-05-02 -->
