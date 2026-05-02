@@ -55,11 +55,11 @@ jobs:
       ACCOUNT_POOL_STATE_PATH: ./tmp/account-pool.state.json
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
