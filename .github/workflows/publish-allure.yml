@@ -75,7 +75,7 @@ jobs:
           if [ -d ./reports/allure-results-raw ]; then
             cp -r ./reports/allure-results-raw/. ./reports/allure-results/ || true
           fi
-          ls -la ./reports/allure-results | head
+          find ./reports/allure-results -maxdepth 1 -mindepth 1 | head -20
 
       - name: Generate Allure HTML report
         run: npm run allure:generate

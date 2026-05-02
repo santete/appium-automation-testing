@@ -97,6 +97,7 @@ jobs:
           fail=0
           for i in $(seq 1 20); do
             echo "::group::Iteration $i"
+            # shellcheck disable=SC2086 # $specs intentionally unquoted to word-split into multiple file args
             if npx mocha --config .mocharc.unit.cjs $specs; then
               pass=$((pass + 1))
               echo "Iter $i PASS (running pass=$pass)"

@@ -74,6 +74,7 @@ jobs:
           SHA: ${{ github.event.workflow_run.head_sha }}
           FAILURES_JSON: ${{ steps.failures.outputs.json }}
         run: |
+          # shellcheck disable=SC2016 # JS template literals inside node -e (intentional single quotes)
           BODY=$(node -e '
             const j = JSON.parse(process.env.FAILURES_JSON || "{\"count\":0,\"failures\":[]}");
             const lines = [
