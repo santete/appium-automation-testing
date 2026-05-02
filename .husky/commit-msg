@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# D16 commit lint hook — enforce `fix(flaky|locator|env): <test_id>` convention
+# khi commit touch tests/**.
+#
+# Rationale: M6 Decision 6 maintenance cost tracker (`scripts/maintenance-cost.cjs`)
+# parse `git log` count `fix(flaky):` / `fix(locator):` / `fix(env):` để
+# estimate hours/sprint. Engineer commit `fix: locator typo` (no scope) khi
+# touch tests/** → tracker miss data → ROI report skewed.
+#
+# Rule:
+#   IF subject matches `^fix:` (no scope) AND staged diff touches `tests/`
+#   THEN block với hint message.
+#
+# Allowed: `fix(flaky):`, `fix(locator):`, `fix(env):`, OR `fix(<other-scope>):`
+#   (other scopes ok cho non-flaky test fix, e.g., `fix(types):`).
+#
+# Override: `git commit --no-verify` skip hook (logged trong KB qua git reflog).
+set -euo pipefail
+
+MSG_FILE="$1"
+SUBJECT="$(head -n1 "$MSG_FILE")"
+
+# Skip merge / revert / fixup commits (auto-generated subject formats).
+case "$SUBJECT" in
+  Merge*|Revert*|fixup!*|squash!*|amend!*) exit 0 ;;
+esac
+
+# Only enforce on `fix:` (no scope). Scoped `fix(...):` already structured.
+if [[ ! "$SUBJECT" =~ ^fix:[[:space:]] ]]; then
+  exit 0
+fi
+
+# Check if staged diff touches tests/.
+if ! git diff --cached --name-only | grep -q '^tests/'; then
+  exit 0
+fi
+
+cat <<'EOF' >&2
+
+[D16 commit-lint] BLOCKED — `fix:` commit touches tests/ but missing scope.
+
+Maintenance cost tracker (`scripts/maintenance-cost.cjs`) parses git log để
+count flaky/locator/env fix per sprint (M6 Decision 6). Untagged fix lost from
+ROI report data.
+
+Use one of these scopes for test fixes:
+  fix(flaky): TC_LOGIN_001 — retry-with-poll
+  fix(locator): ProductsPage — accessibility id update
+  fix(env): emulator perf threshold tweak
+
+Or use a different scope if not flaky/locator/env-related:
+  fix(types): test fixture type narrowing
+  fix(deps): bump appium driver
+
+Override (logged): git commit --no-verify
+EOF
+exit 1

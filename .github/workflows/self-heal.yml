@@ -1,0 +1,83 @@
+# Self-heal locator suggester (M5 Task 4).
+#
+# Triggered manually (workflow_dispatch) hoặc via repository_dispatch event
+# `ui-locator-failure` (CI runner emits sau khi UI test fail với
+# NoSuchElement). Workflow gọi suggester → mở PR với edit Page Object.
+#
+# **KHÔNG auto-merge** — branch protection trên main require human review
+# + 1 approval (spec §7.8 + spike pass criteria #3).
+#
+# Spike doc: docs/spikes/self-heal-locator.md
+name: self-heal
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_id:
+        description: 'Test ID (Mocha fullTitle)'
+        required: true
+      page_object_file:
+        description: 'Path to Page Object .ts file'
+        required: true
+      failing_selector:
+        description: 'The selector that failed'
+        required: true
+      page_source_path:
+        description: 'Artifact path containing page source XML'
+        required: true
+      error_message:
+        description: 'NoSuchElement error message'
+        required: true
+  repository_dispatch:
+    types: [ui-locator-failure]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  suggest:
+    name: Suggest locator + open PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      LLM_MODEL: ${{ secrets.LLM_MODEL }}
+      LLM_BUDGET_MONTHLY_USD: ${{ vars.LLM_BUDGET_MONTHLY_USD || '20' }}
+      LLM_SPEND_STATE_PATH: ./tmp/llm-spend.json
+      ANDROID_DEVICE_NAME: ci-stub
+      ANDROID_PLATFORM_VERSION: '13'
+      APP_PATH: ./apps/SauceLabs-Demo-App.apk
+      ENV_PROFILE: local
+      ACCOUNT_POOL_CONFIG_PATH: ./src/utils/accountPool/pool.config.json
+      ACCOUNT_POOL_STATE_PATH: ./tmp/account-pool.state.json
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Configure git
+        run: |
+          git config user.email "qa-bot@anthropic.com"
+          git config user.name "qa-bot"
+
+      - name: Run suggester + open PR
+        env:
+          INPUT_TEST_ID: ${{ github.event.inputs.test_id || github.event.client_payload.test_id }}
+          INPUT_PAGE_OBJECT_FILE: ${{ github.event.inputs.page_object_file || github.event.client_payload.page_object_file }}
+          INPUT_FAILING_SELECTOR: ${{ github.event.inputs.failing_selector || github.event.client_payload.failing_selector }}
+          INPUT_PAGE_SOURCE_PATH: ${{ github.event.inputs.page_source_path || github.event.client_payload.page_source_path }}
+          INPUT_ERROR_MESSAGE: ${{ github.event.inputs.error_message || github.event.client_payload.error_message }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node ./scripts/self-heal-pr.cjs

@@ -1,0 +1,31 @@
+# AC_PERF_CHECKOUT_001 — Performance: Checkout flow ≤ 5000 ms (P95 SLA)
+#
+# Spec ref: §7.5 P95 SLA (checkout <5s).
+# Plan ref: M6 Task 1 — perf integration.
+#
+# Flow đo: cart screen (CHECKOUT button visible) → checkout step 1
+# → fill info → continue → step 2 → finish → step 3 complete indicator.
+# Markers: `checkout_p95_start`, `checkout_p95_end` (spec set = P95).
+
+contract_id: AC_PERF_CHECKOUT_001
+test_scenario: TC_PERF_CHECKOUT_001
+schema_version: v1
+description: |
+  Performance smoke: 5 iterations of full 3-step checkout → P95 latency
+  ≤ 5000 ms theo spec §7.5.
+
+positive:
+  ui_layer:
+    - id: ui.checkout_complete_visible
+      type: element_visible
+      severity: critical
+      locator: '~test-CHECKOUT: COMPLETE!'
+
+performance:
+  - id: perf.checkout_p95_under_5s
+    type: time_between
+    severity: critical
+    start_marker: checkout_p95_start
+    end_marker: checkout_p95_end
+    max_ms: 5000                       # real device baseline
+    threshold_env_var: PERF_CHECKOUT_SLA_MS  # emulator override: set 12000

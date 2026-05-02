@@ -1,0 +1,145 @@
+# Notify on failure (M5 Task 10).
+#
+# Plan ref: docs/plans/M5-observability.md Decision 6 (GH Issue primary +
+# email SMTP fallback) + acceptance §2 sub-point 7 (alert < 5 min với link
+# Allure + top-3 failure summary).
+#
+# Trigger: workflow_run completed cho CI / Regression. Chỉ notify khi:
+#   - conclusion == 'failure'
+#   - branch == 'main' (không spam PR fail — đã GH UI báo rồi)
+#
+# Channels:
+#   1. **Primary** — Open hoặc reuse GH Issue label `automation-fail`.
+#      Issue body chứa run URL + top-3 failure summary (qua extract-allure-
+#      failures.cjs trên artifact downloaded).
+#   2. **Fallback** — SMTP email khi secret `SMTP_HOST` set. Skip silently
+#      khi chưa setup (dev local + solo-dev mode OK).
+#
+# Auto-close: M6 thêm step close Issue khi green run kế tiếp xảy ra trên main.
+name: Notify on failure
+
+on:
+  workflow_run:
+    workflows: ['CI', 'Regression (nightly)']
+    types: [completed]
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+
+concurrency:
+  group: notify-fail-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout (cần script extract-allure-failures.cjs)
+        uses: actions/checkout@v4
+
+      - name: Download allure artifacts từ failed run
+        uses: actions/download-artifact@v4
+        with:
+          pattern: allure-results-*
+          path: ./reports/allure-results
+          merge-multiple: true
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Extract top-3 failure summary
+        id: failures
+        run: |
+          SUMMARY=$(node scripts/extract-allure-failures.cjs)
+          # Multi-line output → use $GITHUB_OUTPUT delimiter pattern.
+          {
+            echo 'json<<EOF'
+            echo "$SUMMARY"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+          echo "Failures: $SUMMARY"
+
+      - name: Build Issue body
+        id: body
+        env:
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          WF_NAME: ${{ github.event.workflow_run.name }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          FAILURES_JSON: ${{ steps.failures.outputs.json }}
+        run: |
+          BODY=$(node -e '
+            const j = JSON.parse(process.env.FAILURES_JSON || "{\"count\":0,\"failures\":[]}");
+            const lines = [
+              "## Automation failure on `main`",
+              "",
+              `**Workflow:** ${process.env.WF_NAME}`,
+              `**SHA:** \`${process.env.SHA}\``,
+              `**Run:** ${process.env.RUN_URL}`,
+              `**Total failures:** ${j.count}`,
+              "",
+              "### Top-3 failure summary",
+              ""
+            ];
+            if (j.failures.length === 0) {
+              lines.push("_No allure-results artifact downloaded — see run logs._");
+            } else {
+              for (const f of j.failures) {
+                lines.push(`- **${f.name}**`);
+                if (f.message) lines.push("  > " + f.message.split("\n")[0].slice(0, 200));
+              }
+            }
+            lines.push("", "---", "_Auto-opened by `notify-fail.yml` (M5 Task 10)._");
+            console.log(lines.join("\n"));
+          ')
+          {
+            echo 'body<<EOF'
+            echo "$BODY"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open or reuse GH Issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BODY: ${{ steps.body.outputs.body }}
+          WF_NAME: ${{ github.event.workflow_run.name }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          TITLE="[automation-fail] ${WF_NAME} failed on main @ ${SHA:0:7}"
+          # Tìm issue mở với label automation-fail. Reuse nếu có (comment thêm),
+          # else open mới.
+          EXISTING=$(gh issue list --label automation-fail --state open --json number --jq '.[0].number' || echo "")
+          if [ -n "$EXISTING" ]; then
+            echo "Reuse Issue #$EXISTING — appending comment"
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            echo "Opening new Issue"
+            gh issue create --title "$TITLE" --body "$BODY" --label automation-fail
+          fi
+
+      - name: SMTP email fallback (chỉ chạy khi secret SMTP_HOST set)
+        if: ${{ env.SMTP_HOST != '' }}
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          BODY: ${{ steps.body.outputs.body }}
+          WF_NAME: ${{ github.event.workflow_run.name }}
+        uses: dawidd6/action-send-mail@v4
+        with:
+          server_address: ${{ env.SMTP_HOST }}
+          server_port: ${{ env.SMTP_PORT }}
+          username: ${{ env.SMTP_USER }}
+          password: ${{ env.SMTP_PASS }}
+          subject: '[automation-fail] ${{ env.WF_NAME }} failed on main'
+          to: ${{ env.ALERT_EMAIL_TO }}
+          from: 'Automation CI <${{ env.SMTP_USER }}>'
+          body: ${{ env.BODY }}

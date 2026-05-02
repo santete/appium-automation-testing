@@ -136,6 +136,10 @@ export type NegativeCheck = z.infer<typeof NegativeCheckSchema>;
 // ─────────────────────────────────────────────────────────────────────────────
 // Performance
 // ─────────────────────────────────────────────────────────────────────────────
+// D7 (M7 closure): `threshold_env_var` documents which env var overrides
+// `max_ms` at runtime — emulator vs real device baseline differs ~4-5x
+// (see docs/rca/2026-05-01-TC_PERF_LOGIN_001.md). Spec implementations
+// MUST read the value via `resolvePerfThreshold()` instead of hardcoding.
 export const PerfCheckSchema = z.discriminatedUnion('type', [
   z.object({
     ...baseSeverity,
@@ -143,6 +147,12 @@ export const PerfCheckSchema = z.discriminatedUnion('type', [
     start_marker: z.string().min(1),
     end_marker: z.string().min(1),
     max_ms: z.number().int().positive(),
+    threshold_env_var: z
+      .string()
+      .regex(/^[A-Z][A-Z0-9_]*$/, {
+        message: 'threshold_env_var must be SCREAMING_SNAKE_CASE (e.g. PERF_LOGIN_SLA_MS)',
+      })
+      .optional(),
   }),
 ]);
 export type PerfCheck = z.infer<typeof PerfCheckSchema>;
